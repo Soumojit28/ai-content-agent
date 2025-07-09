@@ -44,7 +44,7 @@ def get_agentic_service(logger=None):
     Factory function to get the appropriate service for this branch.
     This enables easy switching between different implementations across branches.
     
-    Main branch: Simple text reversal service (no dependencies)
-    Other branches: CrewAI, LangChain, n8n implementations
+    LangChain branch: LangGraph-based agent implementation
     """
-    return AgenticService(logger) 
+    from langgraph_service import LangGraphService
+    return LangGraphService(logger) 
