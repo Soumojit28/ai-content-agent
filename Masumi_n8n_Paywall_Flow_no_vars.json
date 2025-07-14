@@ -1,0 +1,713 @@
+{
+  "name": "Masumi n8n Paywall Flow",
+  "nodes": [
+    {
+      "parameters": {
+        "type": "SHA256",
+        "value": "={{ $('webhook input').item.json.body.input_string }} || \"hello world\"",
+        "dataPropertyName": "inputStringHash"
+      },
+      "type": "n8n-nodes-base.crypto",
+      "typeVersion": 1,
+      "position": [
+        -2900,
+        760
+      ],
+      "id": "956eb61c-c09e-454c-ab13-a31908be5c30",
+      "name": "input hash",
+      "notes": "converts webhook input to hash"
+    },
+    {
+      "parameters": {
+        "action": "generate",
+        "dataPropertyName": "identifierFromPurchaser",
+        "encodingType": "hex",
+        "stringLength": 14
+      },
+      "type": "n8n-nodes-base.crypto",
+      "typeVersion": 1,
+      "position": [
+        -2680,
+        760
+      ],
+      "id": "3cc06d6f-e201-40bd-9095-4a74e83ba6dc",
+      "name": "generate identifier",
+      "notes": "generates request identifier"
+    },
+    {
+      "parameters": {
+        "content": "## variables \nenvironmental variables for testing purposes. \n\n**IMPORTANT**: for production, please use proper secrets management! e.g. variables from n8n (requires enterprise subscription).",
+        "width": 340
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -3120,
+        940
+      ],
+      "typeVersion": 1,
+      "id": "6abaa477-e484-4840-b169-bc97718dcfc5",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## this is a polling loop\nit checks the payment's `onChainState` to become `FundsLocked`",
+        "height": 80,
+        "width": 460
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1580,
+        920
+      ],
+      "typeVersion": 1,
+      "id": "38742a6d-62dd-4027-b569-3287252baeb4",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"payment_service_url\": \"https://masumi-payment-service-url-that-you-control/api/v1\",\n  \"payment_api_key\": \"your-admin-or-payment-API-key-to-your-masumi-payment-service\",\n  \"agent_identifier\": \"the-id-that-you-have-received-after-registering-your-agent-via-masumi-payment-service\", \n  \"seller_vkey\": \"seller-wallet-vkey-which-is-assigned-to-your-agent\",\n  \"network\": \"Preprod\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -3120,
+        760
+      ],
+      "id": "2d7c94b8-7c84-463a-b7a9-8ab626807d53",
+      "name": "variables draft",
+      "notesInFlow": false,
+      "notes": "environmental variables for testing purposes. IMPORTANT: for production, please use proper secrets management! e.g. variables from n8n (requires enterprise subscription)."
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -3340,
+        600
+      ],
+      "id": "91f986f1-a70c-4764-92d5-52edecea1ac3",
+      "name": "manual testing"
+    },
+    {
+      "parameters": {
+        "content": "## error message\ndefine what to respond in case payment was not processed in time"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -260,
+        1040
+      ],
+      "typeVersion": 1,
+      "id": "d3d6f79c-711a-458b-be48-e9f54e7ecba5",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "## your business logic starts here \nreplace this node with your actual business logic. It will only be executed if the payment is processed successfully.",
+        "height": 180
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -260,
+        460
+      ],
+      "typeVersion": 1,
+      "id": "851d822c-351f-46c8-8b29-b5578865315c",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "jsCode": "// extract input data and generate payment request\nconst items = $input.all();\nconst inputData = items[0]?.json?.body || {\"input_message\": \"hello world\"};\n\n// get uniquely generated identifier for purchaser\nconst identifierFromPurchaser = $input.first().json.identifierFromPurchaser;\n\n// get environment variables\nconst paymentServiceUrl = $input.first().json.payment_service_url || 'https://payment.masumi.network/api/v1'; // public masumi payment service, used by internal teams\nconst agentIdentifier = $input.first().json.agent_identifier || 'agent ID not provided';\nconst network = $input.first().json.network || 'Preprod';\n\n// get timestamps in ISO format for payment endpoint\nconst now = new Date();\n\n// set payByTime to 5 minutes from now\nconst payByTime = new Date(now.getTime() + 5 * 60 * 1000);\nconst payByTimeISO = payByTime.toISOString();\n\n// set submitResultTime to 20 minutes from now (meets 15+ minute requirement)\nconst submitResultTime = new Date(now.getTime() + 20 * 60 * 1000);\nconst submitResultTimeISO = submitResultTime.toISOString();\n\n// get input hash\n// const inputString = JSON.stringify(inputData); // debug\nconst inputHash = $input.first().json.inputStringHash;\n\n// Prepare payment request (using ISO format for /payment/ endpoint)\nconst paymentRequest = {\n  agentIdentifier: agentIdentifier,\n  network: network,\n  inputHash: inputHash,\n  payByTime: payByTimeISO,\n  // metadata: `Paywall request for input: ${inputString.substring(0, 100)}`, // debug\n  metadata: `Paywall request for input: ${inputHash.substring(0, 100)}`,\n  paymentType: \"Web3CardanoV1\",\n  submitResultTime: submitResultTimeISO,\n  identifierFromPurchaser: identifierFromPurchaser\n};\n\nreturn [{\n  json: {\n    originalInput: inputData,\n    paymentRequest: paymentRequest,\n    identifierFromPurchaser: identifierFromPurchaser,\n    paymentServiceUrl: paymentServiceUrl\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2460,
+        760
+      ],
+      "id": "b8f8b52c-8e79-4a11-b2e5-d486eee9fc6a",
+      "name": "prepare payment request",
+      "notes": "requests an \"invoice\" from /payment endpoint of the set masumi payment service"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.paymentServiceUrl }}/payment/",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "token",
+              "value": "={{ $('variables draft').item.json.payment_api_key }}"
+            },
+            {
+              "name": "accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "inputHash",
+              "value": "={{ $json.paymentRequest.inputHash }}"
+            },
+            {
+              "name": "network",
+              "value": "={{ $json.paymentRequest.network }}"
+            },
+            {
+              "name": "agentIdentifier",
+              "value": "={{ $json.paymentRequest.agentIdentifier }}"
+            },
+            {
+              "name": "paymentType",
+              "value": "={{ $json.paymentRequest.paymentType }}"
+            },
+            {
+              "name": "identifierFromPurchaser",
+              "value": "={{ $json.paymentRequest.identifierFromPurchaser }}"
+            },
+            {
+              "name": "payByTime",
+              "value": "={{ $json.paymentRequest.payByTime }}"
+            },
+            {
+              "name": "submitResultTime",
+              "value": "={{ $json.paymentRequest.submitResultTime }}"
+            },
+            {
+              "name": "metadata",
+              "value": "={{ $json.paymentRequest.metadata }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        -2240,
+        760
+      ],
+      "id": "168b1725-401d-40b4-accb-c5bee068d6d0",
+      "name": "POST payment pequest"
+    },
+    {
+      "parameters": {
+        "jsCode": "// prepare purchase request from payment response\nconst items = $input.all();\nconst item = items[0];\nconst paymentResponse = item.json; // the \"invoice\"\nconst originalData = $('prepare payment request').all()[0].json;\n\n// extract payment data\nconst paymentData = paymentResponse.data;\n\n// get seller vkey from environment\nconst sellerVkey = $('variables draft').first().json.seller_vkey || 'NO SELLER VKEY';\n\n// you CAN'T change timing values because the blockchain identifier \n// signature is cryptographically tied to the original timestamps from payment response. changing timing breaks signature validation.\n\n// get timestamps from payment response\nconst payByTimeMillis = String(paymentData.payByTime);\nconst submitResultTimeMillis = String(paymentData.submitResultTime);\nconst unlockTimeMillis = String(paymentData.unlockTime);\nconst externalDisputeUnlockTimeMillis = String(paymentData.externalDisputeUnlockTime);\n\n// prepare purchase request\nconst purchaseRequest = {\n  identifierFromPurchaser: originalData.identifierFromPurchaser,\n  network: originalData.paymentRequest.network,\n  sellerVkey: sellerVkey,\n  paymentType: \"Web3CardanoV1\",\n  blockchainIdentifier: paymentData.blockchainIdentifier,\n  payByTime: payByTimeMillis,  \n  submitResultTime: submitResultTimeMillis,  \n  unlockTime: unlockTimeMillis,  \n  externalDisputeUnlockTime: externalDisputeUnlockTimeMillis, \n  agentIdentifier: originalData.paymentRequest.agentIdentifier,\n  inputHash: paymentData.inputHash\n};\n\nreturn [{\n  json: {\n    originalInput: originalData.originalInput,\n    paymentData: paymentData,\n    purchaseRequest: purchaseRequest,\n    paymentServiceUrl: originalData.paymentServiceUrl,\n    blockchainIdentifier: paymentData.blockchainIdentifier\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2020,
+        760
+      ],
+      "id": "e8ab03a8-1f4a-45e4-9034-a1e5f897ec95",
+      "name": "prepare purchase request"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.paymentServiceUrl }}/purchase/",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "token",
+              "value": "={{ $('variables draft').item.json.payment_api_key }}"
+            },
+            {
+              "name": "accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "identifierFromPurchaser",
+              "value": "={{ $json.purchaseRequest.identifierFromPurchaser }}"
+            },
+            {
+              "name": "network",
+              "value": "={{ $json.purchaseRequest.network }}"
+            },
+            {
+              "name": "sellerVkey",
+              "value": "={{ $json.purchaseRequest.sellerVkey }}"
+            },
+            {
+              "name": "paymentType",
+              "value": "={{ $json.purchaseRequest.paymentType }}"
+            },
+            {
+              "name": "blockchainIdentifier",
+              "value": "={{ $('POST payment pequest').item.json.data.blockchainIdentifier }}"
+            },
+            {
+              "name": "payByTime",
+              "value": "={{ $json.purchaseRequest.payByTime }}"
+            },
+            {
+              "name": "submitResultTime",
+              "value": "={{ $json.purchaseRequest.submitResultTime }}"
+            },
+            {
+              "name": "unlockTime",
+              "value": "={{ $json.purchaseRequest.unlockTime }}"
+            },
+            {
+              "name": "externalDisputeUnlockTime",
+              "value": "={{ $json.purchaseRequest.externalDisputeUnlockTime }}"
+            },
+            {
+              "name": "agentIdentifier",
+              "value": "={{ $json.purchaseRequest.agentIdentifier }}"
+            },
+            {
+              "name": "inputHash",
+              "value": "={{ $json.purchaseRequest.inputHash }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        -1800,
+        760
+      ],
+      "id": "b6ff7e81-d850-4ae5-b216-90ecd70dace9",
+      "name": "POST purchase"
+    },
+    {
+      "parameters": {
+        "amount": 10,
+        "unit": "seconds"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [
+        -1580,
+        760
+      ],
+      "id": "9345ef34-4387-4df0-b2d9-03cb2e96a9f7",
+      "name": "wait for payment",
+      "webhookId": "280f0c41-3b5b-46a5-9502-500c132afd77"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('prepare purchase request').item.json.paymentServiceUrl }}/payment/",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "limit",
+              "value": "10"
+            },
+            {
+              "name": "network",
+              "value": "={{ $('variables draft').item.json.network }}"
+            },
+            {
+              "name": "includeHistory",
+              "value": "false"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "accept",
+              "value": "application/json"
+            },
+            {
+              "name": "token",
+              "value": "={{ $('variables draft').item.json.payment_api_key }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        -1360,
+        680
+      ],
+      "id": "d0801fe0-2627-4eaf-af0a-1809287026e2",
+      "name": "GET payment status"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the blockchain identifier from the correct node\nconst blockchainIdentifier = $('prepare purchase request').first().json.blockchainIdentifier;\n\n// Or if you need it from the payment response:\n// const blockchainIdentifier = $('create-payment').first().json.data.blockchainIdentifier;\n\n// Find our payment\nconst items = $input.all();\nconst ourPayment = items[0].json.data?.Payments?.find(payment => \n  payment.blockchainIdentifier === blockchainIdentifier\n);\n\nconst isConfirmed = ourPayment?.onChainState === 'FundsLocked';\n\nreturn [{\n  json: {\n    isPaymentConfirmed: isConfirmed,\n    paymentStatus: ourPayment?.onChainState || 'not_found',\n    originalInput: $('prepare purchase request').first().json.originalInput,\n    blockchainIdentifier: blockchainIdentifier\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1140,
+        680
+      ],
+      "id": "d6c2fb0d-50c2-421a-a51a-c18d65c175d5",
+      "name": "evaluate payment status"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "f332e512-9350-4f6c-85a4-7b4d3dbd6009",
+              "leftValue": "={{ $json.paymentStatus }}",
+              "rightValue": "FundsLocked",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -920,
+        680
+      ],
+      "id": "c870437f-cfce-4c3f-b6dc-6128310ec6ce",
+      "name": "payment confirmed?"
+    },
+    {
+      "parameters": {
+        "jsCode": "// payment not confirmed yet, prepare for another check\nconst items = $input.all();\nconst item = items[0];\n\n// check if we've been waiting too long (timeout after 10 minutes)\nconst startTime = $('prepare purchase request').all()[0].json.timestamp || Date.now();\nconst currentTime = Date.now();\nconst waitTime = currentTime - startTime;\nconst waitMinutes = 10 // 10 minutes\nconst maxWaitTime = waitMinutes * 60 * 1000; \n\nif (waitTime > maxWaitTime) {\n  return [{\n    json: {\n      error: \"Payment timeout\",\n      message: \"Payment was not confirmed within 10 minutes\",\n      paymentStatus: item.json.paymentStatus,\n      waitedTime: waitTime\n    }\n  }];\n}\n\n// continue waiting - return data to loop back\nreturn [{\n  json: {\n    continueWaiting: true,\n    paymentStatus: item.json.paymentStatus,\n    originalInput: item.json.originalInput,\n    blockchainIdentifier: item.json.blockchainIdentifier\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -700,
+        780
+      ],
+      "id": "d0e6b0a0-01dc-4c15-8bd2-5c1ede573eb0",
+      "name": "payment still pending"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "85bc9c3b-8f5d-45d5-b705-7eb36e8990a5",
+              "leftValue": "={{ $json.continueWaiting }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -480,
+        860
+      ],
+      "id": "1fa2b743-c895-44cd-b2ad-704b72e2be5e",
+      "name": "continue waiting?"
+    },
+    {
+      "parameters": {
+        "jsCode": "// execute your business logic here\nconst items = $input.all();\nconst item = items[0];\nconst originalInput = item.json.originalInput;\n\n// example business logic (replace with your actual logic)\nconst inputString = $('prepare payment request').first().json.originalInput.input_message || JSON.stringify(originalInput);\nconst result = {\n  message: \"Payment confirmed! Processing your request...\",\n  originalInput: originalInput,\n  processedOutput: `${inputString} ${inputString} ${inputString}`,\n  timestamp: new Date().toISOString(),\n  paymentStatus: item.json.paymentStatus,\n  processingComplete: true\n};\n\nreturn [{\n  json: result\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -260,
+        660
+      ],
+      "id": "f27383c6-1569-409b-ad14-6e7c3b0b6f6b",
+      "name": "execute business logic"
+    },
+    {
+      "parameters": {
+        "jsCode": "// execute your business logic here or after this node\nconst items = $input.all();\nconst item = items[0];\nconst originalInput = item.json.originalInput;\n\n// example business logic (replace with your actual logic)\nconst inputString = $('prepare payment request').first().json.originalInput.input_message || JSON.stringify(originalInput);\nconst result = {\n  message: \"Payment has not arrived. Cancelling polling.\",\n  originalInput: inputString,\n  timestamp: new Date().toISOString(),\n  paymentStatus: item.json.paymentStatus,\n  processingComplete: false\n};\n\nreturn [{\n  json: result\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -260,
+        880
+      ],
+      "id": "dc49adba-4c85-4417-bfa1-e5cf2215c4a0",
+      "name": "return payment error"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "masumi-paywall-flow",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -3340,
+        760
+      ],
+      "id": "f1a96edd-a8af-4c20-8f96-144474722552",
+      "name": "webhook input",
+      "webhookId": "9ed50639-4e8e-4e80-87f9-a3b3e29a6469"
+    }
+  ],
+  "pinData": {
+    "manual testing": [
+      {
+        "json": {
+          "input_message": "your input"
+        }
+      }
+    ],
+    "webhook input": [
+      {
+        "json": {
+          "input_message": "your input"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "input hash": {
+      "main": [
+        [
+          {
+            "node": "generate identifier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "generate identifier": {
+      "main": [
+        [
+          {
+            "node": "prepare payment request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "variables draft": {
+      "main": [
+        [
+          {
+            "node": "input hash",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "manual testing": {
+      "main": [
+        [
+          {
+            "node": "variables draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepare payment request": {
+      "main": [
+        [
+          {
+            "node": "POST payment pequest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "POST payment pequest": {
+      "main": [
+        [
+          {
+            "node": "prepare purchase request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepare purchase request": {
+      "main": [
+        [
+          {
+            "node": "POST purchase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "POST purchase": {
+      "main": [
+        [
+          {
+            "node": "wait for payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "wait for payment": {
+      "main": [
+        [
+          {
+            "node": "GET payment status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET payment status": {
+      "main": [
+        [
+          {
+            "node": "evaluate payment status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "evaluate payment status": {
+      "main": [
+        [
+          {
+            "node": "payment confirmed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "payment confirmed?": {
+      "main": [
+        [
+          {
+            "node": "execute business logic",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "payment still pending",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "payment still pending": {
+      "main": [
+        [
+          {
+            "node": "continue waiting?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "continue waiting?": {
+      "main": [
+        [
+          {
+            "node": "wait for payment",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "return payment error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "webhook input": {
+      "main": [
+        [
+          {
+            "node": "variables draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Berlin",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "01b686af-bbb0-47d8-b379-db31947b2595",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "01efadd960c6e1c9ed83fb311293b1b170a5cfc6f100990d88f3282d262bbefa"
+  },
+  "id": "DaoFxntXTObMDYUd",
+  "tags": [
+    {
+      "createdAt": "2025-07-14T12:13:44.233Z",
+      "updatedAt": "2025-07-14T12:13:44.233Z",
+      "id": "5mqu4d1vPR2hcmVu",
+      "name": "prod"
+    }
+  ]
+}

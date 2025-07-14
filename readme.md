@@ -1,204 +1,234 @@
-# Masumi Agent Service - LangGraph Branch
+# Masumi n8n Paywall Workflow
 
-## 🧠 LangGraph Integration
+## Overview
 
-This branch demonstrates **LangGraph ReAct agent patterns** with iterative text summarization and character limit enforcement. The agent uses tools to summarize text and automatically adjusts the summary length until it fits within the specified character limit.
+This repository contains an **n8n workflow** that implements a paywall pattern using the Masumi payment system. The workflow handles payment requests, purchase creation, and status polling - allowing you to monetize any n8n workflow with Cardano blockchain payments.
 
-### Key Features
+![Masumi n8n Paywall Workflow](assets/masumi-paywall-n8n-flow.png)
 
-- **ReAct Agent Pattern**: Uses `create_react_agent` with tools for iterative workflows
-- **Iterative Summarization**: Agent summarizes text, counts characters, and re-runs if over limit
-- **Character Limit Enforcement**: Default 240 characters, configurable via `char_limit` parameter
-- **Tool-Based Architecture**: Separate tools for summarization (gpt-4o-mini) and character counting
-- **Full Masumi Compliance**: All MIP-003 endpoints implemented and tested
+## Repository Contents
 
-### Agent Workflow
+- **`Masumi_n8n_Paywall_Flow_no_vars.json`** - The n8n workflow file to import
+- **`n8n_workflow_replica.py`** - Python script that replicates the workflow for testing/debugging
+- **`.env.example`** - Example configuration file for the replica script
+- **`requirements.txt`** - Python dependencies for the replica script
 
-1. **Input Processing**: Takes text + optional character limit (default: 240)
-2. **Summarization**: Uses gpt-4o-mini to create initial summary with character limit in prompt
-3. **Character Counting**: Counts characters in the generated summary
-4. **Iteration**: If over limit, creates shorter summary and repeats
-5. **Output**: Returns summary within character limit with metadata
+## Quick Start
 
-### Prerequisites
+### 1. Deploy Masumi Payment Service
 
-- [Blockfrost](https://blockfrost.io/) API key
-- **OpenAI API key** (for gpt-4o-mini model)
-- For quick deployment: [Railway account](https://railway.com?referralCode=pa1ar) (free trial is 30 days or $5)
+**Before setting up the n8n workflow, you must have access to your own Masumi Payment Service.** This service is required to:
+- Register your agent and connect it to a seller account
+- Handle all blockchain interactions and payment processing
+- Manage payment requests and status polling
 
-## Railway Deployment
+This example uses <a href="https://railway.com?referralCode=pa1ar" target="_blank">Railway</a> templates. Railway is a cloud development platform that enables developers to deploy, manage and scale applications and databases with minimal configuration.
 
-> The purpose of this repository is to get you from 0 to agentic service owner in as little time as possible. Yet it is assumed, that you are somewhat familiar with [Masumi Network](https://masumi.network/). If you are not, please consider heading over to the official [Masumi docs](https://docs.masumi.network/) first.  
+**Prerequisites:**
+- <a href="https://blockfrost.io/" target="_blank">Blockfrost</a> API key (free tier is enough)
+- <a href="https://railway.com?referralCode=pa1ar" target="_blank">Railway account</a> (free trial is 30 days or $5, more than enough for testing)
 
-This example uses [Railway](https://railway.com?referralCode=pa1ar) templates. Railway is a cloud development platform that enables developers to deploy, manage and scale applications and databases with minimal configuration. Masumi Services obviously can be hosted anywhere, so feel free to use the templates as examples and pick a service of your choice.  
+**Deploy Payment Service:**
 
-Railway templates we provide are pointing to the open-source repositories of Masumi organisation. That means you can read full code, if you want, to be sure nothing shady is going on. You can also fork the repositories first, and still use the templates by just pointing them to your forks, if you want.
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/masumi-payment-service-official?referralCode=padierfind)
 
-### How to Deploy
+1. Click the deploy button above
+2. Provide Blockfrost API key in variables (required to deploy)
+3. Wait for deployment (takes 5 minutes or so)
+4. You'll see 2 services: PostgreSQL database and Masumi Payment Service
+5. Generate a public URL: Payment Service > Settings > Networking > Generate URL
+6. Test at `/admin` or `/docs`. Your admin key is in the variables. **Change it in the admin panel.**
 
-1. **Deploy [Masumi Payment Service](https://github.com/masumi-network/masumi-payment-service)**:  
+**Prepare for Agent Registration:**
+1. Go to Payment Service admin panel at `/admin`
+2. Top up selling wallet using <a href="https://dispenser.masumi.network/" target="_blank">Masumi tADA dispenser</a> (Preprod)
+3. Top up your buying wallet (you'll need funds for testing payments)
+4. Note your seller wallet verification key (vkey) from the admin panel
+5. Copy your Masumi Payment Service URL (format: `https://your-service.railway.app/api/v1`)
 
-    [![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/masumi-payment-service-official?referralCode=padierfind)
-   - Use the template in an existing or new project (in existing project, "Create" > "Template" > search for "Masumi Payment Service")
-   - Provide Blockfrost API key in variables (required to click "deploy")
-   - Click on deploy, watch the logs, wait for it (takes 5+ minutes, depending on the load on Railway)
-   - You should see 2 services on your canvas, connected with an dotted arrow: a PostgreSQL database and a Masumi Payment Service.
-   - Click on Masumi Payment Service on the canvas > Settings > Networking > Generate URL
-   - Test at public URL `/admin` or `/docs`. Your default admin key (used to login to the admin panel and sign transactions) is in your variables. **Change it on the admin panel.**
-   - **Important:** Masumi API endpoints must include `/api/v1/`!  Be sure to append that slugs in the next steps (deploying agentic service).
+**Important:** For testing purposes, this workflow shows payment from the same payment service instance. For production and selling services to real customers, refer to the full <a href="https://docs.masumi.network/" target="_blank">Masumi documentation</a> for instructions about selling on marketplaces like Sokosumi.
 
-2. **Deploy [Agent Service API Wrapper](https://github.com/masumi-network/agentic-service-wrapper)**:  
+### 2. Set Up n8n
 
-    [![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/masumi-compliant-service-api-official?referralCode=padierfind)
-   - Make sure your Masumi payment service is up and running
-   - Provide `PAYMENT_SERVICE_URL` in variables (format: `https://your-instance-of-masumi.up.railway.app/api/v1`, the main part of the URL can differ, point is - don't forget the `/api/v1` slugs)
-   - **Add `OPENAI_API_KEY`** to Railway variables (required for LangGraph agent)
-   - Wait for deployment to complete
-   - Generate public URL in settings of the service
-   - Check the swagger at `/docs`
+You have several options to run an n8n workflow:
 
-3. **Configure Agent**
-   - Go to Payment Service admin panel, top up selling wallet
-   - Register agent via Agent Service URL (you need to have funds on your selling wallet, read the [docs](https://docs.masumi.network/))
-   - Retrieve Agent ID aka Asset ID
-   - Check Agent Service variables:
-     - `SELLER_VKEY`: vkey (verificatin key) of selling wallet used to register agent, get it from the admin panel of your payment service
-     - `PAYMENT_API_KEY`: payment token or admin key for Payment Service (you have used it to login to the admin panel)
-     - `PAYMENT_SERVICE_URL`: URL of your Payment Service
-     - `OPENAI_API_KEY`: OpenAI API key for gpt-4o-mini model
+- **Cloud**: Use [n8n cloud](https://n8n.io/cloud/), fully managed by n8n, includes AI assistant etc.
+- **Self-hosted**: Follow the [n8n installation guide](https://docs.n8n.io/hosting/)
+- **Railway Template**: Deploy n8n quickly using Railway's n8n template, [for example this one](https://railway.com/deploy/n8n-with-workers) (if you have used Railway for deploying the Masumi Payment Service, you can use the same project to add the n8n service)
+- **Docker**: Run n8n in a container using [n8n Docker image](https://hub.docker.com/r/n8nio/n8n)
 
-4. **Test Integration**
-   - Start job via Agent Service with text and optional character limit
-   - Copy job output (excluding `job_id` and `payment_id`)
-   - Go to the `/docs` of your Masumi Payment Service
-   - Open POST `/purchase` on Payment Service and paste your job output (this initiates the payment process)
-   - Check job status on Agent Service for results
+### 3. Import the Workflow
 
-## How to Customize
+1. Open your n8n instance
+2. Go to Workflows → Import
+3. Upload `Masumi_n8n_Paywall_Flow_no_vars.json`
+4. The workflow will appear in your editor
+5. Note the webhook URL (click on the webhook node to see it)
 
-1. Fork this repository
-2. Switch to the langchain branch: `git checkout langchain`
-3. Edit `langgraph_service.py` to implement your LangGraph agent logic
-4. Modify tools and agent workflow as needed
-5. Update `input_schema` in main.py to match your input requirements
-6. Run or deploy your customized version using Railway
+### 4. Register Your Agent
 
-> **Side note:** Railway can try to deploy public repository without asking for any permissions. To deploy a private repository, you need to connect Railway to your GitHub account or GitHub organisation and grant reading permissions (you will be guided through the process by Railway).
+1. In the Masumi Payment Service admin panel, register your agent
+2. Use your n8n webhook URL as the agent endpoint
+3. Wait for registration to complete
+4. Copy your agent identifier (Asset ID) from the admin panel
 
-## Local Setup
+### 5. Configure Variables
+
+Update these variables in the workflow's "variables draft" node:
+
+```json
+{
+  "payment_service_url": "https://your-masumi-payment-service/api/v1",
+  "payment_api_key": "your-payment-service-api-key",
+  "agent_identifier": "your-registered-agent-id",
+  "seller_vkey": "your-seller-wallet-verification-key",
+  "network": "Preprod"
+}
+```
+
+**Important**: For production, use n8n's environment variables (requires enterprise plan, even if you self-host) or credentials system instead of hardcoding values. Also remember to include `/api/v1` in your payment service URL.
+
+### 6. Activate & Test
+
+1. Save and activate your workflow in n8n
+2. Test with a POST request to your webhook URL:
 
 ```bash
+curl -X POST https://your-n8n-instance/webhook/paywall-agent \
+  -H "Content-Type: application/json" \
+  -d '{"input_string": "Test payment flow"}'
+```
+
+
+## Workflow Details
+
+### How It Works
+
+1. **Webhook Trigger** (`/paywall-agent`) - Entry point for requests
+2. **Payment Creation** - Generates payment request with unique identifiers
+3. **Purchase Request** - Locks funds using blockchain identifier
+4. **Status Polling** - Checks every 10 seconds for payment confirmation
+5. **Business Logic** - Executes your custom logic after payment
+
+### Key Nodes Explained
+
+- **Variables**: Configuration storage (update with your values)
+- **Input Hash**: SHA256 hash of input for payment tracking
+- **Generate Identifier**: Random hex for purchaser identification
+- **Prepare Payment/Purchase**: Builds proper JSON payloads
+- **Wait for Payment**: 10-second delay between status checks
+- **Evaluate Payment Status**: Checks for `FundsLocked` state
+- **Execute Business Logic**: Your custom processing (modify this!)
+
+### Integrating with Existing Workflows
+
+This paywall workflow is designed to be **prepended** to your existing business logic:
+
+**Option 1: Add paywall to existing workflow**
+1. Import this paywall workflow to your n8n instance
+2. Copy the paywall nodes (everything before "Execute Business Logic")
+3. Paste them at the beginning of your existing workflow
+4. Connect the paywall's success output to your existing workflow's first node
+5. Replace the "Execute Business Logic" node with your actual business logic
+
+**Option 2: Add business logic to this workflow**
+1. Import this complete paywall workflow
+2. Replace/modify the "Execute Business Logic" node with your functionality
+3. Access input data via `$('webhook input').item.json.body`
+
+Example business logic:
+```javascript
+const input = $('webhook input').item.json.body.input_string;
+// Your custom processing here
+return { result: "Processed: " + input };
+```
+
+### Security Considerations
+
+**Important Security Warning:**
+
+The webhook trigger in this workflow is **unprotected by default**. Anyone who discovers your webhook URL can trigger the workflow. For production use:
+
+1. **Protect your webhook URL:**
+   - Use n8n's built-in webhook authentication
+   - Add custom authentication logic in the workflow
+   - Implement API key validation
+   - Use IP whitelisting if applicable
+
+2. **Consider authentication patterns:**
+   ```javascript
+   // Example: API key validation in the first node
+   const apiKey = $('webhook input').item.json.headers['x-api-key'];
+   if (!apiKey || apiKey !== 'your-secret-key') {
+     throw new Error('Unauthorized');
+   }
+   ```
+
+3. **Environment-specific URLs:**
+   - Use different webhook URLs for development/testing
+   - Keep production webhook URLs confidential
+   - Monitor webhook access logs
+
+4. **Rate limiting:**
+   - Implement request throttling to prevent abuse
+   - Use n8n's rate limiting features if available
+
+## Testing & Debugging
+
+### Using the Python Replica Script
+
+The `n8n_workflow_replica.py` script helps debug issues:
+
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Configure environment
 cp .env.example .env
-# edit .env with your config including OPENAI_API_KEY
+# Edit .env with your values
 
-uv venv
-source .venv/bin/activate
-uv pip sync requirements.txt
-
-python get_payment_source_info.py
-# add SELLER_VKEY to .env
-
-python main.py api
+# Run the test
+python n8n_workflow_replica.py
 ```
 
-## API Endpoints
+This script:
+- Replicates each workflow node as a Python function
+- Shows detailed request/response data
+- Helps debug timing and signature issues
+- Useful for understanding the payment flow
 
-### `/start_job` - Start a new summarization job
-**POST** request with the following JSON body (Masumi Network Standard):
+### Common Issues
 
-```json
-{
-  "input_data": [
-    {"key": "input_string", "value": "Your long text to summarize here"},
-    {"key": "char_limit", "value": "100"}
-  ]
-}
-```
+1. **"Pay by time must be before submit result time"**
+   - The payment service expects future timestamps
+   - Minimum 5-minute gap required between timestamps
 
-**Response:**
-```json
-{
-  "job_id": "uuid-string",
-  "payment_id": "payment-identifier"
-}
-```
+2. **"Invalid blockchain identifier, signature invalid"**
+   - Never modify timestamps from payment response
+   - The blockchain identifier is cryptographically signed
+   - Use exact values returned by payment service
 
-### Other Endpoints
-- `GET /availability` - Check server status
-- `GET /input_schema` - Get input schema definition
-- `GET /status?job_id=<id>` - Check job status
-- `GET /health` - Health check
+3. **"Referenced node doesn't exist"**
+   - Check node names in n8n expressions
+   - Use exact node names, not IDs
 
-## Test
+## Additional Security Notes
 
-```bash
-# basic health checks
-curl http://localhost:8000/availability
-curl http://localhost:8000/input_schema
+1. **Never commit credentials** - Use environment variables or n8n credentials
+2. **Secure your n8n instance** - Enable authentication and proper access controls
+3. **Monitor payment flows** - Check for unusual activity or failed payments
+4. **Test on Preprod first** - Always use testnet before deploying to mainnet
+5. **Keep endpoints private** - Don't expose development/test webhook URLs publicly
 
-# start a summarization job (Masumi Network format)
-curl -X POST http://localhost:8000/start_job \
-  -H "Content-Type: application/json" \
-  -d '{"input_data": [{"key": "input_string", "value": "This is a long text that needs to be summarized. It contains multiple sentences and should be reduced to a shorter form while maintaining the key information."}, {"key": "char_limit", "value": "50"}]}'
+## Resources
 
-# test with default character limit (240)
-curl -X POST http://localhost:8000/start_job \
-  -H "Content-Type: application/json" \
-  -d '{"input_data": [{"key": "input_string", "value": "Your text here"}]}'
+- [n8n Documentation](https://docs.n8n.io/)
+- [Masumi Network Docs](https://docs.masumi.network/)
+- [Masumi Payment Service](https://github.com/masumi-network/masumi-payment-service)
+- [Blockfrost API](https://blockfrost.io/)
 
-# run test suite
-uv run python -m pytest test_api.py -v
+## Support
 
-# test LangGraph service independently
-uv run python langgraph_service.py
-```
-
-## LangGraph Implementation Details
-
-### Service Architecture
-- **Factory Pattern**: `get_agentic_service()` returns `LangGraphService` instance
-- **ReAct Agent**: Uses `create_react_agent` with predefined tools
-- **State Management**: Maintains conversation state through agent execution
-- **Error Handling**: Graceful handling of API failures and edge cases
-
-### Tools Available
-1. **`summarize_text`**: Calls gpt-4o-mini with character limit in prompt
-2. **`count_characters`**: Counts characters in text strings
-
-### Configuration
-- **Model**: gpt-4o-mini (configurable in `langgraph_service.py`)
-- **Temperature**: 0.3 (focused responses)
-- **Default Character Limit**: 240 characters
-- **Customizable**: Character limit can be overridden per request
-
-### Example Usage
-
-```python
-from langgraph_service import LangGraphService
-
-service = LangGraphService()
-
-# Basic usage
-result = await service.execute_task({
-    "input_string": "Your text here"
-})
-
-# With custom character limit
-result = await service.execute_task({
-    "input_string": "Your text here",
-    "char_limit": 100
-})
-
-print(f"Summary: {result.raw}")
-print(f"Character count: {result.json_dict['character_count']}")
-print(f"Within limit: {result.json_dict['within_limit']}")
-```
-
-## Branch Information
-
-This is the **langchain** branch of the multi-integration repository. Other branches available:
-- **main**: Simple text reversal service (zero dependencies)
-- **crewai**: CrewAI framework integration
-- **langchain**: LangGraph ReAct agent implementation (this branch)
-
-Switch branches to explore different agent frameworks while maintaining Masumi compliance.
+- **n8n Issues**: Check [n8n community](https://community.n8n.io/)
+- **Masumi Issues**: Visit [Masumi Discord](https://discord.gg/masumi)
+- **Workflow Issues**: Use this repository's issue tracker
