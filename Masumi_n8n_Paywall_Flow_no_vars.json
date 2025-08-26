@@ -1,141 +1,563 @@
 {
-  "name": "Masumi n8n Paywall Flow",
+  "name": "draft_masumi_API",
   "nodes": [
     {
       "parameters": {
-        "type": "SHA256",
-        "value": "={{ $('webhook input').item.json.body.input_string }} || \"hello world\"",
-        "dataPropertyName": "inputStringHash"
-      },
-      "type": "n8n-nodes-base.crypto",
-      "typeVersion": 1,
-      "position": [
-        -2900,
-        760
-      ],
-      "id": "956eb61c-c09e-454c-ab13-a31908be5c30",
-      "name": "input hash",
-      "notes": "converts webhook input to hash"
-    },
-    {
-      "parameters": {
-        "action": "generate",
-        "dataPropertyName": "identifierFromPurchaser",
-        "encodingType": "hex",
-        "stringLength": 14
-      },
-      "type": "n8n-nodes-base.crypto",
-      "typeVersion": 1,
-      "position": [
-        -2680,
-        760
-      ],
-      "id": "3cc06d6f-e201-40bd-9095-4a74e83ba6dc",
-      "name": "generate identifier",
-      "notes": "generates request identifier"
-    },
-    {
-      "parameters": {
-        "content": "## variables \nenvironmental variables for testing purposes. \n\n**IMPORTANT**: for production, please use proper secrets management! e.g. variables from n8n (requires enterprise subscription).",
-        "width": 340
+        "content": "## masumi MIP-003 compliancy\n[MIP-003](https://github.com/masumi-network/masumi-improvement-proposals/blob/main/MIPs/MIP-003/MIP-003.md)\n\n### required endpoints:\n- `/start_job` - initiates jobs\n- `/status` - check job status  \n- `/availability` - service health\n\n### optional endpoint:\n- `/provide_input` - additional inputs\n\n### your job storage options:\n1. **n8n Static Data** (built-in by n8n - used in this example)\n2. **Google Sheets** (if you want easy-to-read solution)\n3. **Redis and/or external database** (production)",
+        "height": 400,
+        "width": 508
       },
       "type": "n8n-nodes-base.stickyNote",
       "position": [
-        -3120,
-        940
+        -784,
+        -48
       ],
       "typeVersion": 1,
-      "id": "6abaa477-e484-4840-b169-bc97718dcfc5",
-      "name": "Sticky Note"
+      "name": "Documentation",
+      "id": "7fdb6904-6193-4725-a281-0a18000e0940"
     },
     {
       "parameters": {
-        "content": "## this is a polling loop\nit checks the payment's `onChainState` to become `FundsLocked`",
-        "height": 80,
-        "width": 460
+        "content": "## configuration\nset your Masumi Payment Service details here",
+        "height": 100,
+        "width": 380
       },
       "type": "n8n-nodes-base.stickyNote",
       "position": [
-        -1580,
-        920
+        752,
+        656
       ],
       "typeVersion": 1,
-      "id": "38742a6d-62dd-4027-b569-3287252baeb4",
-      "name": "Sticky Note1"
+      "name": "Config Note",
+      "id": "6aa22095-b20b-4b89-90cd-36a6ad398f81"
     },
     {
       "parameters": {
         "mode": "raw",
-        "jsonOutput": "{\n  \"payment_service_url\": \"https://masumi-payment-service-url-that-you-control/api/v1\",\n  \"payment_api_key\": \"your-admin-or-payment-API-key-to-your-masumi-payment-service\",\n  \"agent_identifier\": \"the-id-that-you-have-received-after-registering-your-agent-via-masumi-payment-service\", \n  \"seller_vkey\": \"seller-wallet-vkey-which-is-assigned-to-your-agent\",\n  \"network\": \"Preprod\"\n}",
+        "jsonOutput": "{\n  \"keepOnlySet\": true,\n  \"values\": {\n    \"string\": [\n      {\n        \"name\": \"payment_service_url\",\n        \"value\": \"https://masumi-payment-url.com/api/v1\"\n      },\n      {\n        \"name\": \"payment_api_key\", \n        \"value\": \"admin_key\"\n      },\n      {\n        \"name\": \"agent_identifier\",\n        \"value\": \"agent_id\"\n      },\n      {\n        \"name\": \"seller_vkey\",\n        \"value\": \"seller_vkey_here\"\n      },\n      {\n        \"name\": \"network\",\n        \"value\": \"Preprod\"  \n      }\n    ]\n  }\n}",
         "options": {}
       },
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -3120,
-        760
+        752,
+        496
       ],
-      "id": "2d7c94b8-7c84-463a-b7a9-8ab626807d53",
-      "name": "variables draft",
-      "notesInFlow": false,
-      "notes": "environmental variables for testing purposes. IMPORTANT: for production, please use proper secrets management! e.g. variables from n8n (requires enterprise subscription)."
-    },
-    {
-      "parameters": {},
-      "type": "n8n-nodes-base.manualTrigger",
-      "typeVersion": 1,
-      "position": [
-        -3340,
-        600
-      ],
-      "id": "91f986f1-a70c-4764-92d5-52edecea1ac3",
-      "name": "manual testing"
+      "name": "Masumi Config",
+      "id": "2b3a2592-9226-4cae-9dfc-d34801284805"
     },
     {
       "parameters": {
-        "content": "## error message\ndefine what to respond in case payment was not processed in time"
+        "httpMethod": "POST",
+        "path": "start_job",
+        "responseMode": "responseNode",
+        "options": {}
       },
-      "type": "n8n-nodes-base.stickyNote",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
       "position": [
-        -260,
-        1040
+        -592,
+        400
       ],
-      "typeVersion": 1,
-      "id": "d3d6f79c-711a-458b-be48-e9f54e7ecba5",
-      "name": "Sticky Note2"
+      "name": "POST /start_job",
+      "id": "3db5116d-f1de-4cb4-9462-d8179b68de08",
+      "webhookId": "358a2ce5-c36a-4168-81f9-eec31448023e"
     },
     {
       "parameters": {
-        "content": "## your business logic starts here \nreplace this node with your actual business logic. It will only be executed if the payment is processed successfully.",
-        "height": 180
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.body.identifier_from_purchaser }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notExists",
+                "singleValue": true
+              },
+              "id": "9d4cc313-946f-41ba-80ea-9e6664d4db52"
+            },
+            {
+              "id": "7c9c38b5-2e32-4826-85d0-c6b757794a8e",
+              "leftValue": "={{ $json.body.input_data }}",
+              "rightValue": "",
+              "operator": {
+                "type": "array",
+                "operation": "notExists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
       },
-      "type": "n8n-nodes-base.stickyNote",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
       "position": [
-        -260,
-        460
+        -368,
+        400
       ],
-      "typeVersion": 1,
-      "id": "851d822c-351f-46c8-8b29-b5578865315c",
-      "name": "Sticky Note3"
+      "name": "Validate Start Input",
+      "id": "282a2953-445c-4f0f-9b30-37a7ed0abbaf"
     },
     {
       "parameters": {
-        "jsCode": "// extract input data and generate payment request\nconst items = $input.all();\nconst inputData = items[0]?.json?.body || {\"input_message\": \"hello world\"};\n\n// get uniquely generated identifier for purchaser\nconst identifierFromPurchaser = $input.first().json.identifierFromPurchaser;\n\n// get environment variables\nconst paymentServiceUrl = $input.first().json.payment_service_url || 'https://payment.masumi.network/api/v1'; // public masumi payment service, used by internal teams\nconst agentIdentifier = $input.first().json.agent_identifier || 'agent ID not provided';\nconst network = $input.first().json.network || 'Preprod';\n\n// get timestamps in ISO format for payment endpoint\nconst now = new Date();\n\n// set payByTime to 5 minutes from now\nconst payByTime = new Date(now.getTime() + 5 * 60 * 1000);\nconst payByTimeISO = payByTime.toISOString();\n\n// set submitResultTime to 20 minutes from now (meets 15+ minute requirement)\nconst submitResultTime = new Date(now.getTime() + 20 * 60 * 1000);\nconst submitResultTimeISO = submitResultTime.toISOString();\n\n// get input hash\n// const inputString = JSON.stringify(inputData); // debug\nconst inputHash = $input.first().json.inputStringHash;\n\n// Prepare payment request (using ISO format for /payment/ endpoint)\nconst paymentRequest = {\n  agentIdentifier: agentIdentifier,\n  network: network,\n  inputHash: inputHash,\n  payByTime: payByTimeISO,\n  // metadata: `Paywall request for input: ${inputString.substring(0, 100)}`, // debug\n  metadata: `Paywall request for input: ${inputHash.substring(0, 100)}`,\n  paymentType: \"Web3CardanoV1\",\n  submitResultTime: submitResultTimeISO,\n  identifierFromPurchaser: identifierFromPurchaser\n};\n\nreturn [{\n  json: {\n    originalInput: inputData,\n    paymentRequest: paymentRequest,\n    identifierFromPurchaser: identifierFromPurchaser,\n    paymentServiceUrl: paymentServiceUrl\n  }\n}];"
+        "action": "generate",
+        "dataPropertyName": "job_id",
+        "encodingType": "hex",
+        "stringLength": 16
+      },
+      "type": "n8n-nodes-base.crypto",
+      "typeVersion": 1,
+      "position": [
+        -144,
+        496
+      ],
+      "name": "Generate Job ID",
+      "id": "a56969f6-8a90-442f-83ec-0667ff1f3a66"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Store job in n8n static data (persists across executions)\nconst staticData = $getWorkflowStaticData('global');\nif (!staticData.jobs) staticData.jobs = {};\n/** @type {Record<string, any>} */\nconst jobs = staticData.jobs;\n\n// Get data from previous nodes\nconst items = $input.all();\nconst webhookData = items[0].json;\nconst job_id = webhookData.job_id;\n\n// Parse input_data array into object - TypeScript safe version\n/** @type {Record<string, any>} */\nconst inputData = {};\nif (webhookData.body?.input_data && Array.isArray(webhookData.body.input_data)) {\n  for (const item of webhookData.body.input_data) {\n    const key = String(item?.key ?? \"\");\n    if (!key) continue;\n    inputData[key] = item.value;\n  }\n}\n\n// Store the job\njobs[job_id] = {\n  job_id,\n  identifier_from_purchaser: webhookData.body?.identifier_from_purchaser || '',\n  input_data: inputData,\n  status: 'awaiting_payment',\n  required_inputs: [],\n  result: null,\n  decision_log_hash: null,\n  created_at: new Date().toISOString(),\n  updated_at: new Date().toISOString(),\n};\n\n// Return data for next node\nreturn [{\n  json: {\n    job_id,\n    identifier_from_purchaser: webhookData.body?.identifier_from_purchaser || '',\n    input_data: inputData,\n    body: webhookData.body,\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -2460,
-        760
+        80,
+        496
       ],
-      "id": "b8f8b52c-8e79-4a11-b2e5-d486eee9fc6a",
-      "name": "prepare payment request",
-      "notes": "requests an \"invoice\" from /payment endpoint of the set masumi payment service"
+      "name": "Store Job",
+      "id": "1fe1856f-05a6-41b3-a46f-a3315d9d7296"
+    },
+    {
+      "parameters": {
+        "content": "## payment integration\nhandles Masumi blockchain payment",
+        "height": 80,
+        "width": 580
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        912,
+        368
+      ],
+      "typeVersion": 1,
+      "name": "Payment Note",
+      "id": "efb4fc54-d5b1-4d68-8e06-0a0968bdab92"
+    },
+    {
+      "parameters": {
+        "type": "SHA256",
+        "value": "={{ JSON.stringify($json.input_data) }}",
+        "dataPropertyName": "inputHash"
+      },
+      "type": "n8n-nodes-base.crypto",
+      "typeVersion": 1,
+      "position": [
+        304,
+        496
+      ],
+      "name": "Hash Input",
+      "id": "868878cf-5b92-42f6-85c1-2ecb3e39fcb0"
+    },
+    {
+      "parameters": {
+        "jsCode": "// extract input data and generate payment request\nconst inputData = $('POST /start_job').first().json.body.input_data;\n\n// get uniquely generated identifier for purchaser\nconst identifierFromPurchaser = $('Hash Purchase Identifier').first().json.hashed_identifier_from_purchaser;\n\n// get environment variables\nconst paymentServiceUrl = $input.first().json.values.string[0].value || 'https://payment.masumi.network/api/v1'; // public masumi payment service, used by internal teams\nconst agentIdentifier = $input.first().json.values.string[2].value || 'agent ID not provided';\nconst network = $input.first().json.values.string[4].value || 'Preprod';\n\n// get timestamps in ISO format for payment endpoint\nconst now = new Date();\n\n// set payByTime to 5 minutes from now\nconst payByTime = new Date(now.getTime() + 5 * 60 * 1000);\nconst payByTimeISO = payByTime.toISOString();\n\n// set submitResultTime to 20 minutes from now (meets 15+ minute requirement)\nconst submitResultTime = new Date(now.getTime() + 20 * 60 * 1000);\nconst submitResultTimeISO = submitResultTime.toISOString();\n\n// get input hash\n// const inputString = JSON.stringify(inputData); // debug\nconst inputHash = $('Hash Input').first().json.inputHash;\n\n// Prepare payment request (using ISO format for /payment/ endpoint)\nconst paymentRequest = {\n  agentIdentifier: agentIdentifier,\n  network: network,\n  inputHash: inputHash,\n  payByTime: payByTimeISO,\n  metadata: `Paywall request for input: ${inputHash.substring(0, 100)}`,\n  paymentType: \"Web3CardanoV1\",\n  submitResultTime: submitResultTimeISO,\n  identifierFromPurchaser: identifierFromPurchaser\n};\n\nreturn [{\n  json: {\n    originalInput: inputData,\n    paymentRequest: paymentRequest,\n    identifierFromPurchaser: identifierFromPurchaser,\n    paymentServiceUrl: paymentServiceUrl\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        976,
+        496
+      ],
+      "name": "Prepare Payment",
+      "id": "740ddbda-8f44-476d-b193-dcbab4635f7b"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  \"status\": \"accepted\",\n  \"job_id\": $('Generate Job ID').item.json.job_id,\n  \"message\": \"Job accepted, awaiting payment\",\n  \"payment\": {\n    \"identifierFromPurchaser\": $('Prepare Payment').item.json.paymentRequest.identifierFromPurchaser,\n    \"network\": $('Masumi Config').item.json.values.string[4].value,\n    \"sellerVkey\": $('Masumi Config').item.json.values.string[3].value,\n    \"paymentType\": \"Web3CardanoV1\",\n    \"blockchainIdentifier\": $json.data.blockchainIdentifier,\n    \"payByTime\": $json.data.payByTime,\n    \"submitResultTime\": $json.data.submitResultTime,\n    \"unlockTime\": $json.data.unlockTime,\n    \"externalDisputeUnlockTime\": $json.data.externalDisputeUnlockTime,\n    \"agentIdentifier\": $('Masumi Config').item.json.values.string[2].value,\n    \"inputHash\": $('Hash Input').item.json.inputHash\n  }\n} }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1360,
+        496
+      ],
+      "name": "Respond 202",
+      "id": "8567c381-76da-42fa-b14a-c81ecdba75f7"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"error\": \"invalid_input\",\n  \"message\": \"Missing required fields\",\n  \"required\": [\"identifier_from_purchaser\", \"input_data\"]\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        -144,
+        304
+      ],
+      "name": "Respond 400",
+      "id": "d6b70ff3-e95c-4135-9488-ae838e28324d"
+    },
+    {
+      "parameters": {
+        "path": "status",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -592,
+        960
+      ],
+      "name": "GET /status",
+      "id": "d8313adc-0bd9-46f3-90dc-a83c5e5b632a",
+      "webhookId": "7d0f4320-ba49-44e0-87f2-0ddacad06320"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "702ae629-ea36-422d-aaec-d283bbe41678",
+              "leftValue": "={{ $json.query.job_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -368,
+        960
+      ],
+      "name": "Has Job ID?",
+      "id": "794bb52b-a2f7-4942-8cb8-f8c724455d5c"
+    },
+    {
+      "parameters": {
+        "jsCode": "// get job from static n8n workflow data\nconst staticData = $getWorkflowStaticData('global');\nconst items = $input.all();\nconst queryData = items[0].json;\nconst job_id = queryData.query?.job_id;\n\nif (job_id === '') {\n  return [{\n    json: {\n      httpStatus: 400,\n      response: {\n        error: 'empty_job_id',\n        message: 'job_id query parameter is required'\n      }\n    }\n  }];\n}\n\nconst job = staticData.jobs ? staticData.jobs[job_id] : undefined;\n\nif (!job) {\n  return [{\n    json: {\n      httpStatus: 404,\n      response: {\n        error: 'job_not_found',\n        job_id: job_id\n      }\n    }\n  }];\n}\n\n// Return everything about the job\nreturn [{\n  json: {\n    httpStatus: 200,\n    response: {\n      ...job  // Spread operator to include all job properties\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -144,
+        864
+      ],
+      "name": "Load Job Status",
+      "id": "0e20f4da-4ac1-44ab-a68c-f8365a97299e"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.response }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        80,
+        864
+      ],
+      "name": "Respond Status",
+      "id": "ea724f81-1431-45c6-a8b7-d0135349d40d"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"error\": \"missing_job_id\", \"message\": \"job_id query parameter is required\" } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        -144,
+        1056
+      ],
+      "name": "Respond Missing ID",
+      "id": "096cc4a1-aec8-4b3c-a259-ff6aa9f6b3ce"
+    },
+    {
+      "parameters": {
+        "path": "availability",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -592,
+        1280
+      ],
+      "name": "GET /availability",
+      "id": "8fe60a5c-2b5a-481f-8837-54a234d82177",
+      "webhookId": "07f7aad1-28e8-4bd4-a460-f716316693b5"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"available\": true, \"type\": \"masumi-agent\", \"message\": \"Service operational\", \"version\": \"1.0.0\", \"timestamp\": $now.toISO() } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        -368,
+        1280
+      ],
+      "name": "Respond Availability",
+      "id": "474067eb-69f7-4011-bf5e-ff19c4832271"
+    },
+    {
+      "parameters": {
+        "path": "input_schema",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -592,
+        1504
+      ],
+      "name": "GET /input_schema",
+      "id": "ccde999e-6444-456d-8e00-78817f0f20e7",
+      "webhookId": "1de3963b-fd71-4daf-b1c0-710dd2d99752"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"inputs\": [ { \"key\": \"prompt\", \"type\": \"text\", \"required\": true, \"description\": \"Main input prompt\", \"maxLen\": 2000 }, { \"key\": \"tone\", \"type\": \"enum\", \"required\": false, \"values\": [\"neutral\", \"friendly\", \"professional\"], \"default\": \"neutral\" }, { \"key\": \"max_length\", \"type\": \"number\", \"required\": false, \"min\": 100, \"max\": 5000, \"default\": 1000 } ] } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        -368,
+        1504
+      ],
+      "name": "Respond Schema",
+      "id": "18433ad0-e9a0-4078-ac5f-0bc88437fc19"
+    },
+    {
+      "parameters": {
+        "content": "## payment confirmation \nyour agent processing happens if this loop is successful",
+        "height": 100,
+        "width": 460
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2128,
+        592
+      ],
+      "typeVersion": 1,
+      "name": "Business Logic Note",
+      "id": "7bbffeb8-a39d-4374-92df-1a398c8c3288"
+    },
+    {
+      "parameters": {
+        "amount": 20,
+        "unit": "seconds"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [
+        2128,
+        400
+      ],
+      "name": "Poll Payment Status",
+      "id": "88b990f4-007a-4570-a981-c120d2647f32",
+      "webhookId": "a600bb94-5bb5-4cc2-b47f-f0b0c2772b8e"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Masumi Config').item.json.values.string[0].value }}/payment/",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "network",
+              "value": "={{ $('Masumi Config').item.json.values.string[4].value }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "token",
+              "value": "={{ $('Masumi Config').item.json.values.string[1].value }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        2320,
+        400
+      ],
+      "name": "Check Payment",
+      "id": "0b58bafd-35a2-4f93-8048-900c98e3b8c6"
+    },
+    {
+      "parameters": {
+        "jsCode": "const onChainState = $input.first().json.data.Payments[0].onChainState;\nconst currentTransaction = $input.first().json.data.Payments[0].CurrentTransaction;\nconst txHash = currentTransaction && currentTransaction['txHash'] ? currentTransaction['txHash'] : \"\";\n\nconst amount = $input.first().json.data.Payments[0].RequestedFunds[0].amount || \"\";\n\n// determine if payment confirmed (onChainState is \"FundsLocked\")\nconst isConfirmed = onChainState === \"FundsLocked\";\n\n// Get job ID from earlier in the flow\nconst jobId = $('Generate Job ID').first().json.job_id;\n\n\n// Return payment verification data\nreturn {\n  json: {\n    isConfirmed: isConfirmed,\n    job_id: jobId,\n    onChainState: onChainState || 'not_found',\n    txHash: txHash,\n    amount: amount,\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2544,
+        400
+      ],
+      "name": "Verify Payment",
+      "id": "d66c5e9a-9d32-42a7-a71b-5d7a9664ed5c"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "f4923f83-ab2a-4d12-9ace-35f45764d5b1",
+              "leftValue": "={{ $json.isConfirmed }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2768,
+        400
+      ],
+      "name": "Payment Confirmed?",
+      "id": "1105370a-4cfe-4dde-a55b-8b352de37e63"
+    },
+    {
+      "parameters": {
+        "content": "## YOUR BUSINESS LOGIC HERE\n\nReplace this with your actual agent processing:\n- CrewAI execution\n- LangGraph workflow\n- Custom AI processing\n- API calls\n- Data transformation\n\nAccess input data from job storage",
+        "height": 296,
+        "width": 340
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        3344,
+        -96
+      ],
+      "typeVersion": 1,
+      "name": "Agent Processing",
+      "id": "014bc9cc-8bc9-461c-ad32-bf2fbf056bc5"
+    },
+    {
+      "parameters": {
+        "jsCode": "// PRE-BUSINESS LOGIC: Create/update job status and prepare data for agent processing\nconst staticData = $getWorkflowStaticData('global');\nconst items = $input.all();\nconst paymentData = items[0].json;\nconst job_id = paymentData.job_id;\n\n// Initialize jobs object if it doesn't exist\nif (!staticData.jobs) {\n  staticData.jobs = {};\n}\n\n// Create or update job entry (payment confirmed, ready for processing)\nconst job = staticData.jobs[job_id] || {};\njob.status = 'running';\njob.job_id = job_id;\njob.updated_at = new Date().toISOString();\njob.payment_confirmed = true;\n\n// Add input data if it doesn't exist yet\nif (!job.input_data) {\n  job.input_data = paymentData.input_data || {};\n}\n\n// Save back to static storage\nstaticData.jobs[job_id] = job;\n\n// Extract and format input data for business logic\nconst input = job.input_data;\nconst prompt = $('POST /start_job').first().json.body.input_data[0].value || 'Please provide a helpful response';\nconst tone = input.tone || 'neutral';\n\n// Prepare structured data for the business logic step\nreturn [{\n  json: {\n    job_id: job_id,\n    input_data: input,\n    formatted_prompt: prompt,\n    tone: tone,\n    processing_started: new Date().toISOString()\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3136,
+        384
+      ],
+      "name": "Pre-Business Logic",
+      "id": "d37aab7e-27b7-46ad-9b22-6dcf363368a3"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Payment timeout - update job status\nconst staticData = $getWorkflowStaticData('global');\nconst items = $input.all();\nconst timeoutData = items[0].json;\nconst job_id = timeoutData.job_id;\n\nif (staticData.jobs && staticData.jobs[job_id]) {\n  staticData.jobs[job_id].status = 'failed';\n  staticData.jobs[job_id].error = 'Payment timeout';\n  staticData.jobs[job_id].updated_at = new Date().toISOString();\n}\n\nreturn [{\n  json: {\n    job_id: job_id,\n    error: 'Payment timeout after 10 minutes',\n    status: 'failed'\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3520,
+        640
+      ],
+      "name": "Handle Timeout",
+      "id": "72450f8d-338d-4784-b24c-7ae9a44ebf14"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=response to the user\ntone:  {{ $json.tone }}\nuser message: {{ $json.formatted_prompt }}",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        3424,
+        240
+      ],
+      "id": "7d5c9ed1-8edb-4652-b2c9-afbae3c0a2a8",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4.1-nano",
+          "mode": "list",
+          "cachedResultName": "gpt-4.1-nano"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        3520,
+        464
+      ],
+      "id": "7a473267-ab8d-4453-8576-9ade88f6d91e",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "QxAgC4FonBJExRCL",
+          "name": "OpenAi account"
+        }
+      }
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $json.paymentServiceUrl }}/payment/",
+        "url": "={{ $('Masumi Config').item.json.values.string[0].value }}/payment/",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -145,7 +567,7 @@
             },
             {
               "name": "token",
-              "value": "={{ $('variables draft').item.json.payment_api_key }}"
+              "value": "={{ $('Masumi Config').item.json.values.string[1].value }}"
             },
             {
               "name": "accept",
@@ -158,15 +580,15 @@
           "parameters": [
             {
               "name": "inputHash",
-              "value": "={{ $json.paymentRequest.inputHash }}"
+              "value": "={{ $('Hash Input').item.json.inputHash }}"
             },
             {
               "name": "network",
-              "value": "={{ $json.paymentRequest.network }}"
+              "value": "={{ $('Masumi Config').item.json.values.string[4].value }}"
             },
             {
               "name": "agentIdentifier",
-              "value": "={{ $json.paymentRequest.agentIdentifier }}"
+              "value": "={{ $('Masumi Config').item.json.values.string[2].value }}"
             },
             {
               "name": "paymentType",
@@ -174,7 +596,7 @@
             },
             {
               "name": "identifierFromPurchaser",
-              "value": "={{ $json.paymentRequest.identifierFromPurchaser }}"
+              "value": "={{ $('Hash Purchase Identifier').item.json.hashed_identifier_from_purchaser }}"
             },
             {
               "name": "payByTime",
@@ -195,24 +617,52 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
       "position": [
-        -2240,
-        760
+        1200,
+        496
       ],
-      "id": "168b1725-401d-40b4-accb-c5bee068d6d0",
+      "id": "46278f25-bf0b-4e38-8ca4-aaf594c51817",
       "name": "POST payment pequest"
     },
     {
       "parameters": {
-        "jsCode": "// prepare purchase request from payment response\nconst items = $input.all();\nconst item = items[0];\nconst paymentResponse = item.json; // the \"invoice\"\nconst originalData = $('prepare payment request').all()[0].json;\n\n// extract payment data\nconst paymentData = paymentResponse.data;\n\n// get seller vkey from environment\nconst sellerVkey = $('variables draft').first().json.seller_vkey || 'NO SELLER VKEY';\n\n// you CAN'T change timing values because the blockchain identifier \n// signature is cryptographically tied to the original timestamps from payment response. changing timing breaks signature validation.\n\n// get timestamps from payment response\nconst payByTimeMillis = String(paymentData.payByTime);\nconst submitResultTimeMillis = String(paymentData.submitResultTime);\nconst unlockTimeMillis = String(paymentData.unlockTime);\nconst externalDisputeUnlockTimeMillis = String(paymentData.externalDisputeUnlockTime);\n\n// prepare purchase request\nconst purchaseRequest = {\n  identifierFromPurchaser: originalData.identifierFromPurchaser,\n  network: originalData.paymentRequest.network,\n  sellerVkey: sellerVkey,\n  paymentType: \"Web3CardanoV1\",\n  blockchainIdentifier: paymentData.blockchainIdentifier,\n  payByTime: payByTimeMillis,  \n  submitResultTime: submitResultTimeMillis,  \n  unlockTime: unlockTimeMillis,  \n  externalDisputeUnlockTime: externalDisputeUnlockTimeMillis, \n  agentIdentifier: originalData.paymentRequest.agentIdentifier,\n  inputHash: paymentData.inputHash\n};\n\nreturn [{\n  json: {\n    originalInput: originalData.originalInput,\n    paymentData: paymentData,\n    purchaseRequest: purchaseRequest,\n    paymentServiceUrl: originalData.paymentServiceUrl,\n    blockchainIdentifier: paymentData.blockchainIdentifier\n  }\n}];"
+        "jsCode": "const originalId = $input.first().json.identifier_from_purchaser;\n\n// convert to hex and pad/truncate\nlet hexString = '';\nfor (let i = 0; i < originalId.length; i++) {\n  hexString += originalId.charCodeAt(i).toString(16);\n}\n\n// Ensure it's between 14-26 chars\nif (hexString.length < 14) {\n  hexString = hexString.padEnd(14, '0');\n}\nif (hexString.length > 26) {\n  hexString = hexString.substring(0, 26);\n}\n\nreturn {\n  hashed_identifier_from_purchaser: hexString\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -2020,
-        760
+        528,
+        496
       ],
-      "id": "e8ab03a8-1f4a-45e4-9034-a1e5f897ec95",
-      "name": "prepare purchase request"
+      "id": "05705286-7483-412a-9f19-e5a74805eeb4",
+      "name": "Hash Purchase Identifier"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"status\": \"success\",\n  \"job_id\": \"{{ $json.job_id }}\",\n  \"identifierFromPurchaser\": \"{{ $json.identifier_from_purchaser }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        208,
+        320
+      ],
+      "id": "df1f1e1f-c292-4158-ad82-957067b9b079",
+      "name": "DEBUG: respond without payment"
+    },
+    {
+      "parameters": {
+        "jsCode": "// prepare purchase request from payment response\n\nconst paymentResponse = $('POST payment pequest').all()[0].json; // the \"invoice\"\nconst originalData = $('Prepare Payment').all()[0].json\n\n// extract payment data\nconst paymentData = paymentResponse.data;\n\n// get seller vkey from environment\nconst sellerVkey = $('Masumi Config').first().json.values.string[3].value;\n\n// you CAN'T change timing values because the blockchain identifier \n// signature is cryptographically tied to the original timestamps from payment response. changing timing breaks signature validation.\n\n// get timestamps from payment response\nconst payByTimeMillis = String(paymentData.payByTime);\nconst submitResultTimeMillis = String(paymentData.submitResultTime);\nconst unlockTimeMillis = String(paymentData.unlockTime);\nconst externalDisputeUnlockTimeMillis = String(paymentData.externalDisputeUnlockTime);\n\n// prepare purchase request\nconst purchaseRequest = {\n  identifierFromPurchaser: originalData.identifierFromPurchaser,\n  network: originalData.paymentRequest.network,\n  sellerVkey: sellerVkey,\n  paymentType: \"Web3CardanoV1\",\n  blockchainIdentifier: paymentData.blockchainIdentifier,\n  payByTime: payByTimeMillis,  \n  submitResultTime: submitResultTimeMillis,  \n  unlockTime: unlockTimeMillis,  \n  externalDisputeUnlockTime: externalDisputeUnlockTimeMillis, \n  agentIdentifier: originalData.paymentRequest.agentIdentifier,\n  inputHash: paymentData.inputHash\n};\n\nreturn [{\n  json: {\n    originalInput: originalData.originalInput,\n    paymentData: paymentData,\n    purchaseRequest: purchaseRequest,\n    paymentServiceUrl: originalData.paymentServiceUrl,\n    blockchainIdentifier: paymentData.blockchainIdentifier\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        304
+      ],
+      "id": "1d51f1cd-90bb-4494-aaa2-6efd21872bb0",
+      "name": "DEBUG: prepare purchase request"
     },
     {
       "parameters": {
@@ -227,7 +677,7 @@
             },
             {
               "name": "token",
-              "value": "={{ $('variables draft').item.json.payment_api_key }}"
+              "value": "={{ $('Masumi Config').item.json.values.string[1].value }}"
             },
             {
               "name": "accept",
@@ -289,83 +739,56 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
       "position": [
-        -1800,
-        760
+        1824,
+        304
       ],
-      "id": "b6ff7e81-d850-4ae5-b216-90ecd70dace9",
-      "name": "POST purchase"
+      "id": "3a03dcdd-c9a6-4eab-8658-ecacc2a3fa77",
+      "name": "DEBUG: POST purchase"
     },
     {
       "parameters": {
-        "amount": 10,
-        "unit": "seconds"
+        "content": "DEBUG: connect the `prepare purchase request` to the output of `Respond 202` and the output of the `POST purchase` to the input of `Poll Payment Status`",
+        "height": 128,
+        "width": 340,
+        "color": 7
       },
-      "type": "n8n-nodes-base.wait",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1552,
+        128
+      ],
       "typeVersion": 1,
-      "position": [
-        -1580,
-        760
-      ],
-      "id": "9345ef34-4387-4df0-b2d9-03cb2e96a9f7",
-      "name": "wait for payment",
-      "webhookId": "280f0c41-3b5b-46a5-9502-500c132afd77"
+      "name": "Payment Note1",
+      "id": "036ca515-98f4-4ac0-9e97-067b5348e678"
     },
     {
       "parameters": {
-        "url": "={{ $('prepare purchase request').item.json.paymentServiceUrl }}/payment/",
-        "sendQuery": true,
-        "queryParameters": {
-          "parameters": [
-            {
-              "name": "limit",
-              "value": "10"
-            },
-            {
-              "name": "network",
-              "value": "={{ $('variables draft').item.json.network }}"
-            },
-            {
-              "name": "includeHistory",
-              "value": "false"
-            }
-          ]
-        },
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "accept",
-              "value": "application/json"
-            },
-            {
-              "name": "token",
-              "value": "={{ $('variables draft').item.json.payment_api_key }}"
-            }
-          ]
-        },
-        "options": {}
+        "content": "DEBUG: connect `respond without payment` to the output of `Store Job`",
+        "height": 176,
+        "width": 196,
+        "color": 7
       },
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4,
+      "type": "n8n-nodes-base.stickyNote",
       "position": [
-        -1360,
-        680
+        208,
+        128
       ],
-      "id": "d0801fe0-2627-4eaf-af0a-1809287026e2",
-      "name": "GET payment status"
+      "typeVersion": 1,
+      "name": "Payment Note2",
+      "id": "710645b4-5835-4b52-b326-d83d247a89fa"
     },
     {
       "parameters": {
-        "jsCode": "// Get the blockchain identifier from the correct node\nconst blockchainIdentifier = $('prepare purchase request').first().json.blockchainIdentifier;\n\n// Or if you need it from the payment response:\n// const blockchainIdentifier = $('create-payment').first().json.data.blockchainIdentifier;\n\n// Find our payment\nconst items = $input.all();\nconst ourPayment = items[0].json.data?.Payments?.find(payment => \n  payment.blockchainIdentifier === blockchainIdentifier\n);\n\nconst isConfirmed = ourPayment?.onChainState === 'FundsLocked';\n\nreturn [{\n  json: {\n    isPaymentConfirmed: isConfirmed,\n    paymentStatus: ourPayment?.onChainState || 'not_found',\n    originalInput: $('prepare purchase request').first().json.originalInput,\n    blockchainIdentifier: blockchainIdentifier\n  }\n}];"
+        "jsCode": "// payment not confirmed yet, prepare for another check\nconst items = $input.all();\nconst item = items[0];\n\n// check if we've been waiting too long (timeout after X minutes)\nconst startTime = $('Prepare Payment').all()[0].json.timestamp || Date.now();\nconst currentTime = Date.now();\nconst waitTime = currentTime - startTime;\nconst waitMinutes = 10 // minutes\nconst maxWaitTime = waitMinutes * 60 * 1000; \n\nif (waitTime > maxWaitTime) {\n  return [{\n    json: {\n      error: \"Payment timeout\",\n      message: \"Payment was not confirmed within 10 minutes\",\n      paymentStatus: item.json.paymentStatus,\n      waitedTime: waitTime\n    }\n  }];\n}\n\n// continue waiting - return data to loop back\nreturn [{\n  json: {\n    continueWaiting: true,\n    paymentStatus: item.json.paymentStatus,\n    originalInput: item.json.originalInput,\n    blockchainIdentifier: item.json.blockchainIdentifier\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1140,
-        680
+        2992,
+        528
       ],
-      "id": "d6c2fb0d-50c2-421a-a51a-c18d65c175d5",
-      "name": "evaluate payment status"
+      "id": "df57b24f-f5ca-482c-863d-3ae9fab7602e",
+      "name": "10 minutes counter"
     },
     {
       "parameters": {
@@ -378,54 +801,7 @@
           },
           "conditions": [
             {
-              "id": "f332e512-9350-4f6c-85a4-7b4d3dbd6009",
-              "leftValue": "={{ $json.paymentStatus }}",
-              "rightValue": "FundsLocked",
-              "operator": {
-                "type": "string",
-                "operation": "equals",
-                "name": "filter.operator.equals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [
-        -920,
-        680
-      ],
-      "id": "c870437f-cfce-4c3f-b6dc-6128310ec6ce",
-      "name": "payment confirmed?"
-    },
-    {
-      "parameters": {
-        "jsCode": "// payment not confirmed yet, prepare for another check\nconst items = $input.all();\nconst item = items[0];\n\n// check if we've been waiting too long (timeout after 10 minutes)\nconst startTime = $('prepare purchase request').all()[0].json.timestamp || Date.now();\nconst currentTime = Date.now();\nconst waitTime = currentTime - startTime;\nconst waitMinutes = 10 // 10 minutes\nconst maxWaitTime = waitMinutes * 60 * 1000; \n\nif (waitTime > maxWaitTime) {\n  return [{\n    json: {\n      error: \"Payment timeout\",\n      message: \"Payment was not confirmed within 10 minutes\",\n      paymentStatus: item.json.paymentStatus,\n      waitedTime: waitTime\n    }\n  }];\n}\n\n// continue waiting - return data to loop back\nreturn [{\n  json: {\n    continueWaiting: true,\n    paymentStatus: item.json.paymentStatus,\n    originalInput: item.json.originalInput,\n    blockchainIdentifier: item.json.blockchainIdentifier\n  }\n}];"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        -700,
-        780
-      ],
-      "id": "d0e6b0a0-01dc-4c15-8bd2-5c1ede573eb0",
-      "name": "payment still pending"
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 1
-          },
-          "conditions": [
-            {
-              "id": "85bc9c3b-8f5d-45d5-b705-7eb36e8990a5",
+              "id": "4c648a83-0794-44ab-85af-40427291345a",
               "leftValue": "={{ $json.continueWaiting }}",
               "rightValue": "",
               "operator": {
@@ -442,119 +818,91 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        -480,
-        860
+        3184,
+        624
       ],
-      "id": "1fa2b743-c895-44cd-b2ad-704b72e2be5e",
-      "name": "continue waiting?"
+      "name": "continue waiting?",
+      "id": "e76a140f-5d47-444e-af2a-ff87ceb47de7"
     },
     {
       "parameters": {
-        "jsCode": "// execute your business logic here\nconst items = $input.all();\nconst item = items[0];\nconst originalInput = item.json.originalInput;\n\n// example business logic (replace with your actual logic)\nconst inputString = $('prepare payment request').first().json.originalInput.input_message || JSON.stringify(originalInput);\nconst result = {\n  message: \"Payment confirmed! Processing your request...\",\n  originalInput: originalInput,\n  processedOutput: `${inputString} ${inputString} ${inputString}`,\n  timestamp: new Date().toISOString(),\n  paymentStatus: item.json.paymentStatus,\n  processingComplete: true\n};\n\nreturn [{\n  json: result\n}];"
+        "jsCode": "// POST-BUSINESS LOGIC: Save results and update job status\nconst staticData = $getWorkflowStaticData('global');\n\n// Get the LLM response and job context\nconst userInput = $('Pre-Business Logic').first().json.formatted_prompt;\nconst llmResponse = $input.first().json.text;\nconst job_id = $('Pre-Business Logic').first().json.job_id;\n\n// Get the actual job object from storage (not just the ID)\nconst job = staticData.jobs[job_id];\n\nif (!job) {\n  return [{\n    json: {\n      error: 'Job not found during post-processing',\n      job_id: job_id\n    }\n  }];\n}\n\n// Prepare final result structure\nconst result = {\n  response: llmResponse || 'No response generated',\n  tone_applied: $('Pre-Business Logic').first().json.tone || 'neutral',\n  processing_completed: new Date().toISOString(),\n  model_used: 'gpt-4.1-nano'\n};\n\n// Update job with final results\njob.result = result;\njob.status = 'done';\njob.updated_at = new Date().toISOString();\nstaticData.jobs[job_id] = job;\n\nreturn [{\n  json: {\n    job_id: job_id,\n    status: 'completed',\n    input: userInput,\n    result: result,\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -260,
-        660
+        3824,
+        352
       ],
-      "id": "f27383c6-1569-409b-ad14-6e7c3b0b6f6b",
-      "name": "execute business logic"
-    },
-    {
-      "parameters": {
-        "jsCode": "// execute your business logic here or after this node\nconst items = $input.all();\nconst item = items[0];\nconst originalInput = item.json.originalInput;\n\n// example business logic (replace with your actual logic)\nconst inputString = $('prepare payment request').first().json.originalInput.input_message || JSON.stringify(originalInput);\nconst result = {\n  message: \"Payment has not arrived. Cancelling polling.\",\n  originalInput: inputString,\n  timestamp: new Date().toISOString(),\n  paymentStatus: item.json.paymentStatus,\n  processingComplete: false\n};\n\nreturn [{\n  json: result\n}];"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        -260,
-        880
-      ],
-      "id": "dc49adba-4c85-4417-bfa1-e5cf2215c4a0",
-      "name": "return payment error"
-    },
-    {
-      "parameters": {
-        "httpMethod": "POST",
-        "path": "masumi-paywall-flow",
-        "responseMode": "lastNode",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.webhook",
-      "typeVersion": 2,
-      "position": [
-        -3340,
-        760
-      ],
-      "id": "f1a96edd-a8af-4c20-8f96-144474722552",
-      "name": "webhook input",
-      "webhookId": "9ed50639-4e8e-4e80-87f9-a3b3e29a6469"
+      "name": "Example Post-Business Logic",
+      "id": "d65a236c-8d3f-44fc-9c38-ee30b0cd09ad"
     }
   ],
-  "pinData": {
-    "manual testing": [
-      {
-        "json": {
-          "input_message": "your input"
-        }
-      }
-    ],
-    "webhook input": [
-      {
-        "json": {
-          "input_message": "your input"
-        }
-      }
-    ]
-  },
+  "pinData": {},
   "connections": {
-    "input hash": {
+    "POST /start_job": {
       "main": [
         [
           {
-            "node": "generate identifier",
+            "node": "Validate Start Input",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "generate identifier": {
+    "Validate Start Input": {
       "main": [
         [
           {
-            "node": "prepare payment request",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "variables draft": {
-      "main": [
-        [
-          {
-            "node": "input hash",
+            "node": "Respond 400",
             "type": "main",
             "index": 0
           }
         ],
-        []
-      ]
-    },
-    "manual testing": {
-      "main": [
         [
           {
-            "node": "variables draft",
+            "node": "Generate Job ID",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "prepare payment request": {
+    "Generate Job ID": {
+      "main": [
+        [
+          {
+            "node": "Store Job",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Job": {
+      "main": [
+        [
+          {
+            "node": "Hash Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hash Input": {
+      "main": [
+        [
+          {
+            "node": "Hash Purchase Identifier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Payment": {
       "main": [
         [
           {
@@ -565,91 +913,213 @@
         ]
       ]
     },
-    "POST payment pequest": {
+    "Respond 202": {
       "main": [
         [
           {
-            "node": "prepare purchase request",
+            "node": "Poll Payment Status",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "prepare purchase request": {
+    "GET /status": {
       "main": [
         [
           {
-            "node": "POST purchase",
+            "node": "Has Job ID?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "POST purchase": {
+    "Has Job ID?": {
       "main": [
         [
           {
-            "node": "wait for payment",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "wait for payment": {
-      "main": [
-        [
-          {
-            "node": "GET payment status",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "GET payment status": {
-      "main": [
-        [
-          {
-            "node": "evaluate payment status",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "evaluate payment status": {
-      "main": [
-        [
-          {
-            "node": "payment confirmed?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "payment confirmed?": {
-      "main": [
-        [
-          {
-            "node": "execute business logic",
+            "node": "Load Job Status",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "payment still pending",
+            "node": "Respond Missing ID",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "payment still pending": {
+    "Load Job Status": {
+      "main": [
+        [
+          {
+            "node": "Respond Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET /availability": {
+      "main": [
+        [
+          {
+            "node": "Respond Availability",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET /input_schema": {
+      "main": [
+        [
+          {
+            "node": "Respond Schema",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Poll Payment Status": {
+      "main": [
+        [
+          {
+            "node": "Check Payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Payment": {
+      "main": [
+        [
+          {
+            "node": "Verify Payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Payment": {
+      "main": [
+        [
+          {
+            "node": "Payment Confirmed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Payment Confirmed?": {
+      "main": [
+        [
+          {
+            "node": "Pre-Business Logic",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "10 minutes counter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pre-Business Logic": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Example Post-Business Logic",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Masumi Config": {
+      "main": [
+        [
+          {
+            "node": "Prepare Payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "POST payment pequest": {
+      "main": [
+        [
+          {
+            "node": "Respond 202",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hash Purchase Identifier": {
+      "main": [
+        [
+          {
+            "node": "Masumi Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DEBUG: prepare purchase request": {
+      "main": [
+        [
+          {
+            "node": "DEBUG: POST purchase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DEBUG: POST purchase": {
+      "main": [
+        []
+      ]
+    },
+    "10 minutes counter": {
       "main": [
         [
           {
@@ -664,25 +1134,14 @@
       "main": [
         [
           {
-            "node": "wait for payment",
+            "node": "Poll Payment Status",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "return payment error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "webhook input": {
-      "main": [
-        [
-          {
-            "node": "variables draft",
+            "node": "Handle Timeout",
             "type": "main",
             "index": 0
           }
@@ -692,22 +1151,26 @@
   },
   "active": false,
   "settings": {
-    "executionOrder": "v1",
-    "timezone": "Europe/Berlin",
-    "callerPolicy": "workflowsFromSameOwner"
+    "executionOrder": "v1"
   },
-  "versionId": "01b686af-bbb0-47d8-b379-db31947b2595",
+  "versionId": "16126820-3229-49d8-9eb0-5bfebed4d6c7",
   "meta": {
     "templateCredsSetupCompleted": true,
-    "instanceId": "01efadd960c6e1c9ed83fb311293b1b170a5cfc6f100990d88f3282d262bbefa"
+    "instanceId": "980a5e447aede1c65317ac6c0418742e8fbad22f807df90f903ba05beb8e557c"
   },
-  "id": "DaoFxntXTObMDYUd",
+  "id": "UOyLKacfOWcMUkRJ",
   "tags": [
     {
-      "createdAt": "2025-07-14T12:13:44.233Z",
-      "updatedAt": "2025-07-14T12:13:44.233Z",
-      "id": "5mqu4d1vPR2hcmVu",
-      "name": "prod"
+      "createdAt": "2025-08-14T12:37:26.611Z",
+      "updatedAt": "2025-08-14T12:37:26.611Z",
+      "id": "aan6mjfQd52QajAg",
+      "name": "masumi"
+    },
+    {
+      "createdAt": "2025-08-14T12:37:26.458Z",
+      "updatedAt": "2025-08-14T12:37:26.458Z",
+      "id": "kHfvd2Gbn7PljreE",
+      "name": "mip-003"
     }
   ]
 }
