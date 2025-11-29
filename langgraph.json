@@ -1,0 +1,8 @@
+{
+    "dependencies": ["."],
+    "graphs": {
+        "content_graph": "./graph.py:content_graph"
+    },
+    "env": ".env"
+  }
+  

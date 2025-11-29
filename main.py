@@ -11,10 +11,11 @@ from masumi.payment import Payment
 from agentic_service import get_agentic_service
 from logging_config import setup_logging
 import cuid2
+import logging
 
 #region congif
 # Configure logging
-logger = setup_logging()
+logger = setup_logging(log_level=logging.DEBUG)
 
 # Load environment variables
 load_dotenv(override=True)
@@ -114,14 +115,20 @@ class InputDataItem(BaseModel):
     value: str
 
 class StartJobRequest(BaseModel):
-    input_data: list[InputDataItem]
+    input_data: dict[str, str]
+    identifier_from_purchaser: str
     
     class Config:
         json_schema_extra = {
             "example": {
-                "input_data": [
-                    {"key": "input_string", "value": "Hello World"}
-                ]
+                "identifier_from_purchaser": "12345671234567",
+                "input_data": {
+                    "topic": "Use of Masumi Network for Decentralized AI Agents",
+                    "tone": "pragmatic",
+                    "platform": "linkedin",
+                    "keywords": "Masumi Network, Cardano",
+                    "link": "https://masumi.network"
+                }
             }
         }
 
@@ -176,24 +183,18 @@ async def start_job(data: StartJobRequest):
             )
         
         # generate identifier_from_purchaser internally using cuid2
-        identifier_from_purchaser = cuid2.Cuid().generate()
+        identifier_from_purchaser = data.identifier_from_purchaser
         logger.info(f"Generated identifier_from_purchaser: {identifier_from_purchaser}")
         
         # convert input_data array to dict for internal processing
-        input_data_dict = {item.key: item.value for item in data.input_data}
+        content_payload = data.input_data
         
-        # validate required input
-        if "input_string" not in input_data_dict:
-            logger.error("Required field 'input_string' missing from input_data")
-            raise HTTPException(
-                status_code=400,
-                detail="Bad Request: 'input_string' is required in input_data array"
-            )
-        
-        # Log the input text (truncate if too long)
-        input_text = input_data_dict.get("input_string", "")
-        truncated_input = input_text[:100] + "..." if len(input_text) > 100 else input_text
-        logger.info(f"Received job request with input: '{truncated_input}'")
+        logger.info(
+            "Received content job topic='%s' tone='%s' platform='%s'",
+            content_payload["topic"][:80],
+            content_payload["tone"],
+            content_payload["platform"],
+        )
         logger.info(f"Starting job {job_id} with agent {agent_identifier}")
 
         # Define payment amounts
@@ -214,92 +215,61 @@ async def start_job(data: StartJobRequest):
             #amounts=amounts,
             config=config,
             identifier_from_purchaser=identifier_from_purchaser,
-            input_data=input_data_dict,
+            input_data=content_payload,
             network=NETWORK
+            
         )
         
         logger.info("Creating payment request...")
         payment_request = await payment.create_payment_request()
-        payment_id = payment_request["data"]["blockchainIdentifier"]
-        payment.payment_ids.add(payment_id)
-        logger.info(f"Created payment request with ID: {payment_id}")
+        blockchain_identifier = payment_request["data"]["blockchainIdentifier"]
+        payment.payment_ids.add(blockchain_identifier)
+        logger.info(f"Created payment request with blockchain identifier: {blockchain_identifier}")
 
         # Store job info (Awaiting payment)
         jobs[job_id] = {
             "status": "awaiting_payment",
             "payment_status": "pending",
-            "payment_id": payment_id,
-            "input_data": input_data_dict,
+            "blockchain_identifier": blockchain_identifier,
+            "input_data": data.input_data,
             "result": None,
-            "identifier_from_purchaser": identifier_from_purchaser
+            "identifier_from_purchaser": data.identifier_from_purchaser
         }
 
-        async def payment_callback(payment_id: str):
-            await handle_payment_status(job_id, payment_id)
+        async def payment_callback(blockchain_identifier: str):
+            await handle_payment_status(job_id, blockchain_identifier)
 
         # Start monitoring the payment status
         payment_instances[job_id] = payment
         logger.info(f"Starting payment status monitoring for job {job_id}")
         await payment.start_status_monitoring(payment_callback)
 
-        # Get SELLER_VKEY from environment
-        seller_vkey = os.getenv("SELLER_VKEY", "")
-        if not seller_vkey:
-            logger.error("SELLER_VKEY environment variable is missing")
-            raise HTTPException(
-                status_code=500,
-                detail="Server configuration error: SELLER_VKEY not configured. Please contact administrator."
-            )
-        
-        # Return the response in the format expected by the /purchase endpoint
-        # Include both the original fields and the extended fields
+        # Return the response in the required format
         return {
-            # Original fields for backward compatibility
+            "status": "success",
             "job_id": job_id,
-            "payment_id": payment_id,
-            # Extended fields for /purchase endpoint
-            "identifierFromPurchaser": identifier_from_purchaser,
-            "network": NETWORK,
-            "sellerVkey": seller_vkey,
-            "paymentType": "Web3CardanoV1",
-            "blockchainIdentifier": payment_id,
-            "submitResultTime": str(payment_request["data"]["submitResultTime"]),
-            "unlockTime": str(payment_request["data"]["unlockTime"]),
-            "externalDisputeUnlockTime": str(payment_request["data"]["externalDisputeUnlockTime"]),
+            "blockchainIdentifier": blockchain_identifier,
+            "submitResultTime": payment_request["data"]["submitResultTime"],
+            "unlockTime": payment_request["data"]["unlockTime"],
+            "externalDisputeUnlockTime": payment_request["data"]["externalDisputeUnlockTime"],
             "agentIdentifier": agent_identifier,
-            "inputHash": payment_request["data"]["inputHash"]
+            "sellerVKey": os.getenv("SELLER_VKEY"),
+            "identifierFromPurchaser": data.identifier_from_purchaser,
+            # "amounts": amounts,
+            "input_hash": payment.input_hash,
+            "payByTime": payment_request["data"]["payByTime"],
         }
-    except HTTPException:
-        # re-raise HTTP exceptions (our custom errors)
-        raise
-    except ValueError as e:
-        logger.error(f"Value error in start_job: {str(e)}", exc_info=True)
-        if "PAYMENT_AMOUNT" in str(e):
-            raise HTTPException(
-                status_code=500,
-                detail="Server configuration error: Invalid PAYMENT_AMOUNT value. Please contact administrator."
-            )
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid input data: {str(e)}"
-        )
     except KeyError as e:
         logger.error(f"Missing required field in request: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=400,
-            detail=f"Missing required field: {str(e)}"
+            detail="Bad Request: If input_data or identifier_from_purchaser is missing, invalid, or does not adhere to the schema."
         )
     except Exception as e:
-        logger.error(f"Unexpected error in start_job: {str(e)}", exc_info=True)
-        # check if it's a masumi payment service error
-        if "Network error" in str(e) or "payment" in str(e).lower():
-            raise HTTPException(
-                status_code=502,
-                detail="Payment service unavailable. Please try again later or contact administrator."
-            )
+        logger.error(f"Error in start_job: {str(e)}", exc_info=True)
         raise HTTPException(
-            status_code=500,
-            detail="Internal server error. Please contact administrator."
+            status_code=400,
+            detail="Input_data or identifier_from_purchaser is missing, invalid, or does not adhere to the schema."
         )
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -313,10 +283,16 @@ async def handle_payment_status(job_id: str, payment_id: str) -> None:
         # Update job status to running
         jobs[job_id]["status"] = "running"
         input_data = jobs[job_id]["input_data"]
+        
+        # Process keywords if it's a string
+        if isinstance(input_data.get("keywords"), str):
+            input_data["keywords"] = [k.strip() for k in input_data["keywords"].split(",")]
+        
         logger.info(f"Input data: {input_data}")
 
         # Execute the AI task
         result = await execute_agentic_task(input_data)
+        print(f"Result: {result}")
         result_dict = result.json_dict  # type: ignore
         logger.info(f"task completed for job {job_id}")
         
@@ -372,7 +348,7 @@ async def get_status(job_id: str):
 
 
     result_data = job.get("result")
-    result = result_data.raw if result_data and hasattr(result_data, "raw") else None
+    result = result_data.json_dict if result_data and hasattr(result_data, "json_dict") else None
 
     return {
         "job_id": job_id,
@@ -407,15 +383,51 @@ async def input_schema():
     """
     return {
         "input_data": [
-            {
-                "id": "input_string",
-                "type": "string",
-                "name": "Text to Reverse",
-                "data": {
-                    "description": "The text input that will be reversed",
-                    "placeholder": "Enter text to reverse here"
-                }
+        {
+        "id": "topic",
+        "type": "string",
+        "name": "Topic",
+            "data": {
+                "description": "The topic of the article",
+                "placeholder": "Use of Masumi Network for Decentralized AI Agents"
             }
+        },
+        {
+            "id": "tone",
+            "type": "string",
+            "name": "Tone",
+            "data": {
+                "description": "The tone of the article",
+                "placeholder": "pragmatic"
+            }
+        },
+        {
+            "id": "platform",
+            "type": "string",
+            "name": "Platform",
+            "data": {
+                "description": "The platform of the article",
+                "placeholder": "linkedin"
+            }
+        },
+        {
+            "id": "keywords",
+            "type": "string",
+            "name": "Keywords",
+            "data": {
+                "description": "The keywords of the article",
+                "placeholder": "Masumi Network, Cardano"
+            }
+        },
+        {
+            "id": "link",
+            "type": "string",
+            "name": "Link",
+            "data": {
+                "description": "The link of the article",
+                "placeholder": "https://masumi.network"
+            }
+        }
         ]
     }
 

@@ -43,10 +43,10 @@ class TestHealthEndpoints:
         assert response.status_code == 200
         data = response.json()
         assert "input_data" in data
-        assert len(data["input_data"]) == 1
-        assert data["input_data"][0]["id"] == "input_string"
+        assert len(data["input_data"]) == 6
+        assert data["input_data"][0]["id"] == "topic"
+        assert data["input_data"][1]["id"] == "tone"
         assert data["input_data"][0]["type"] == "string"
-        assert data["input_data"][0]["name"] == "Text to Reverse"
 
 
 class TestStartJobEndpoint:
@@ -81,7 +81,10 @@ class TestStartJobEndpoint:
         # test request
         test_data = {
             "input_data": [
-                {"key": "input_string", "value": "Hello World"}
+                {"key": "topic", "value": "AI copilots for RevOps"},
+                {"key": "tone", "value": "pragmatic"},
+                {"key": "platform", "value": "linkedin"},
+                {"key": "keywords", "value": "RevOps,playbooks"}
             ]
         }
         
@@ -96,8 +99,14 @@ class TestStartJobEndpoint:
         mock_payment_class.assert_called_once()
         call_args = mock_payment_class.call_args[1]
         assert call_args["identifier_from_purchaser"] == "test-cuid2-identifier"
-        # verify input_data was converted to dict
-        expected_input = {"input_string": "Hello World"}
+        expected_input = {
+            "topic": "AI copilots for RevOps",
+            "tone": "pragmatic",
+            "platform": "linkedin",
+            "keywords": ["RevOps", "playbooks"],
+            "link": None,
+            "audience": None,
+        }
         assert call_args["input_data"] == expected_input
     
     def test_start_job_missing_input_data(self):
@@ -121,8 +130,8 @@ class TestStartJobEndpoint:
     @patch('main.Payment')
     @patch('main.cuid2.Cuid') 
     @patch.dict(os.environ, {"AGENT_IDENTIFIER": "test-agent-123", "SELLER_VKEY": "test-seller-vkey"})
-    def test_start_job_missing_input_string(self, mock_cuid, mock_payment_class):
-        """test job creation with missing input_string in input_data"""
+    def test_start_job_missing_topic(self, mock_cuid, mock_payment_class):
+        """test job creation with missing topic in input_data"""
         # mock cuid2 generation
         mock_cuid_instance = MagicMock()
         mock_cuid_instance.generate.return_value = "test-cuid2-identifier"
@@ -130,14 +139,14 @@ class TestStartJobEndpoint:
         
         test_data = {
             "input_data": [
-                {"key": "other_field", "value": "some value"}
+                {"key": "tone", "value": "bold"}
             ]
         }
         
         response = client.post("/start_job", json=test_data)
         
         assert response.status_code == 400
-        assert "input_string" in response.json()["detail"]
+        assert "topic" in response.json()["detail"]
     
     def test_url_validation_function(self):
         """test the URL validation function directly"""
@@ -170,7 +179,8 @@ class TestStartJobEndpoint:
         
         test_data = {
             "input_data": [
-                {"key": "input_string", "value": "Hello World"}
+                {"key": "topic", "value": "AI in payments"},
+                {"key": "tone", "value": "optimistic"}
             ]
         }
         
@@ -222,7 +232,8 @@ class TestStatusEndpoint:
         # create job
         test_data = {
             "input_data": [
-                {"key": "input_string", "value": "Hello World"}
+                {"key": "topic", "value": "AI copilots"},
+                {"key": "tone", "value": "authoritative"}
             ]
         }
         
@@ -312,40 +323,68 @@ class TestAgenticService:
     async def test_service_execute_task(self):
         """test that the service properly executes tasks"""
         service = get_agentic_service()
-        input_data = {"input_string": "hello world"}
-        
+        input_data = {"topic": "AI in fintech", "tone": "confident"}
+        fake_post = {"post_body": "Sample post body", "headline": "Headline", "rationale": "Because data."}
+        fake_state = {
+            "topic": input_data["topic"],
+            "tone": input_data["tone"],
+            "platform": "linkedin",
+            "post": fake_post,
+            "hashtag_package": {"hashtags": ["AI", "Fintech"], "explainer": "Reach operators"},
+            "insights": ["Insight"],
+            "research_summary": "Summary",
+            "metadata": {},
+        }
+        service.workflow.invoke = AsyncMock(return_value=fake_state)
         result = await service.execute_task(input_data)
         
         assert isinstance(result, ServiceResult)
-        assert result.original_text == "hello world"
-        # the result depends on the service type - text reversal or summarization
-        assert result.raw is not None
-        assert len(result.raw) > 0
-        assert "task" in result.json_dict
+        assert result.original_text == "AI in fintech"
+        assert result.raw == "Sample post body"
+        assert result.json_dict["post"]["headline"] == "Headline"
+        assert result.json_dict["hashtags"] == ["AI", "Fintech"]
     
     @pytest.mark.asyncio
     async def test_service_empty_input(self):
         """test service with empty input"""
         service = get_agentic_service()
-        input_data = {"input_string": ""}
-        
+        input_data = {"topic": "", "tone": "neutral"}
+        fake_state = {
+            "topic": "",
+            "tone": "neutral",
+            "platform": "linkedin",
+            "post": {"post_body": "", "headline": "", "rationale": ""},
+            "hashtag_package": {"hashtags": [], "explainer": ""},
+            "insights": [],
+            "research_summary": "",
+            "metadata": {},
+        }
+        service.workflow.invoke = AsyncMock(return_value=fake_state)
         result = await service.execute_task(input_data)
         
         assert result.original_text == ""
-        # the result depends on the service type - empty reversal or summarization prompt
-        assert result.raw is not None
+        assert result.raw == ""
     
     @pytest.mark.asyncio
-    async def test_service_missing_input_string(self):
-        """test service with missing input_string key"""
+    async def test_service_missing_topic(self):
+        """test service with missing topic key"""
         service = get_agentic_service()
-        input_data = {"other_key": "value"}
-        
+        input_data = {"tone": "bold"}
+        fake_state = {
+            "topic": "",
+            "tone": "bold",
+            "platform": "linkedin",
+            "post": {"post_body": "Body", "headline": "HL", "rationale": "Because"},
+            "hashtag_package": {"hashtags": ["Test"], "explainer": "test"},
+            "insights": [],
+            "research_summary": "",
+            "metadata": {},
+        }
+        service.workflow.invoke = AsyncMock(return_value=fake_state)
         result = await service.execute_task(input_data)
         
         assert result.original_text == ""
-        # the result depends on the service type - empty reversal or summarization prompt
-        assert result.raw is not None
+        assert result.raw == "Body"
 
 
 class TestMasumiCompliance:
@@ -394,7 +433,8 @@ class TestMasumiCompliance:
         # this test only checks the request format parsing, not the full flow
         test_data = {
             "input_data": [
-                {"key": "input_string", "value": "test"}
+                {"key": "topic", "value": "Edge deployments"},
+                {"key": "tone", "value": "technical"}
             ]
         }
         

@@ -2,7 +2,7 @@ import os
 import logging
 from logging.handlers import RotatingFileHandler
 
-def setup_logging(log_level=logging.INFO):
+def setup_logging(log_level=logging.DEBUG):
     """
     Configure application-wide logging
     

@@ -1,14 +1,20 @@
+from typing import Any, Dict, Optional
+
+
 class ServiceResult:
-    """Simple result object to mimic CrewAI result structure"""
-    def __init__(self, original_text: str, reversed_text: str):
+    """Generic container for orchestrator results."""
+    def __init__(
+        self,
+        *,
+        raw: Any,
+        json_dict: Dict[str, Any],
+        original_text: str = "",
+        extras: Optional[Dict[str, Any]] = None,
+    ):
+        self.raw = raw
+        self.json_dict = json_dict
         self.original_text = original_text
-        self.reversed_text = reversed_text
-        self.raw = reversed_text
-        self.json_dict = {
-            "original_text": original_text,
-            "reversed_text": reversed_text,
-            "task": "reverse_echo"
-        }
+        self.extras = extras or {}
 
 class AgenticService:
     """Simple service that reverses input text"""
@@ -37,7 +43,15 @@ class AgenticService:
         if self.logger:
             self.logger.info(f"Reverse echo completed: '{reversed_text[:50]}{'...' if len(reversed_text) > 50 else ''}'")
         
-        return ServiceResult(text, reversed_text)
+        return ServiceResult(
+            raw=reversed_text,
+            json_dict={
+                "original_text": text,
+                "reversed_text": reversed_text,
+                "task": "reverse_echo"
+            },
+            original_text=text
+        )
 
 def get_agentic_service(logger=None):
     """

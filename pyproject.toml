@@ -17,6 +17,12 @@ dependencies = [
     "python-dotenv",
     "httpx",
     "cuid2>=2.0.1",
+    "pyyaml",
+    "langchain",
+    "langchain-core",
+    "langchain-openai",
+    "langgraph",
+    "xxhash",
     "pytest>=8.3.5",
     "pytest-asyncio>=1.0.0",
 ]

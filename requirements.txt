@@ -6,6 +6,7 @@ masumi==0.1.39
 httpx
 requests
 cuid2
+pyyaml
 pytest>=7.0.0
 pytest-asyncio>=0.21.0
 # LangGraph dependencies

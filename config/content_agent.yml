@@ -1,0 +1,7 @@
+serpapi_engine: "google"
+serpapi_location: "United States"
+serpapi_language: "en"
+serpapi_num_results: 10
+model: "gpt-4o-mini"
+temperature: 0.35
+use_emojis: true

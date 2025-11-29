@@ -2,23 +2,23 @@
 
 ## 🧠 LangGraph Integration
 
-This branch demonstrates **LangGraph ReAct agent patterns** with iterative text summarization and character limit enforcement. The agent uses tools to summarize text and automatically adjusts the summary length until it fits within the specified character limit.
+This branch demonstrates a **multi-agent LangGraph workflow** that researches a topic with SerpAPI, drafts a LinkedIn/X-ready post, and proposes hashtags. It replaces the previous summarizer with a production-style content composer.
 
 ### Key Features
 
-- **ReAct Agent Pattern**: Uses `create_react_agent` with tools for iterative workflows
-- **Iterative Summarization**: Agent summarizes text, counts characters, and re-runs if over limit
-- **Character Limit Enforcement**: Default 240 characters, configurable via `char_limit` parameter
-- **Tool-Based Architecture**: Separate tools for summarization (gpt-4o-mini) and character counting
-- **Full Masumi Compliance**: All MIP-003 endpoints implemented and tested
+- **SerpAPI Research Tool**: Fetches fresh public insights for the topic + optional keywords/link.
+- **Copywriting Agent**: Tailors tone + platform, stitches insights, and emits CTA-ready copy.
+- **Hashtag Agent**: Generates ordered hashtags with rationale for reach planning.
+- **Config-Driven Prompts**: `config/content_agent.yml` centralizes prompts + API settings.
+- **Full Masumi Compliance**: All MIP-003 endpoints implemented and tested.
 
 ### Agent Workflow
 
-1. **Input Processing**: Takes text + optional character limit (default: 240)
-2. **Summarization**: Uses gpt-4o-mini to create initial summary with character limit in prompt
-3. **Character Counting**: Counts characters in the generated summary
-4. **Iteration**: If over limit, creates shorter summary and repeats
-5. **Output**: Returns summary within character limit with metadata
+1. **Input Processing**: Topic, tone, platform, keywords, optional link/audience.
+2. **Research**: SerpAPI pulls snippets, research agent distills insights + summary.
+3. **Copywriting**: Copy agent turns insights into a LinkedIn/X-style post + rationale.
+4. **Hashtags**: Hashtag agent outputs a ranked list plus justification.
+5. **Output**: Job result JSON contains post body, headline, hashtags, insights, and metadata.
 
 ### Prerequisites
 
@@ -103,14 +103,17 @@ python main.py api
 
 ## API Endpoints
 
-### `/start_job` - Start a new summarization job
+### `/start_job` - Start a new content job
 **POST** request with the following JSON body (Masumi Network Standard):
 
 ```json
 {
   "input_data": [
-    {"key": "input_string", "value": "Your long text to summarize here"},
-    {"key": "char_limit", "value": "100"}
+    {"key": "topic", "value": "AI copilots for RevOps"},
+    {"key": "tone", "value": "pragmatic"},
+    {"key": "platform", "value": "linkedin"},
+    {"key": "keywords", "value": "RevOps,playbooks"},
+    {"key": "link", "value": "https://example.com/deck.pdf"}
   ]
 }
 ```
@@ -136,15 +139,16 @@ python main.py api
 curl http://localhost:8000/availability
 curl http://localhost:8000/input_schema
 
-# start a summarization job (Masumi Network format)
+# start a content job (Masumi Network format)
 curl -X POST http://localhost:8000/start_job \
   -H "Content-Type: application/json" \
-  -d '{"input_data": [{"key": "input_string", "value": "This is a long text that needs to be summarized. It contains multiple sentences and should be reduced to a shorter form while maintaining the key information."}, {"key": "char_limit", "value": "50"}]}'
-
-# test with default character limit (240)
-curl -X POST http://localhost:8000/start_job \
-  -H "Content-Type: application/json" \
-  -d '{"input_data": [{"key": "input_string", "value": "Your text here"}]}'
+  -d '{"input_data": [
+        {"key": "topic", "value": "AI copilots for RevOps"},
+        {"key": "tone", "value": "pragmatic"},
+        {"key": "platform", "value": "linkedin"},
+        {"key": "keywords", "value": "RevOps,playbooks"},
+        {"key": "link", "value": "https://example.com/deck.pdf"}
+      ]}'
 
 # run test suite
 uv run python -m pytest test_api.py -v
@@ -156,20 +160,20 @@ uv run python langgraph_service.py
 ## LangGraph Implementation Details
 
 ### Service Architecture
-- **Factory Pattern**: `get_agentic_service()` returns `LangGraphService` instance
-- **ReAct Agent**: Uses `create_react_agent` with predefined tools
-- **State Management**: Maintains conversation state through agent execution
-- **Error Handling**: Graceful handling of API failures and edge cases
-
-### Tools Available
-1. **`summarize_text`**: Calls gpt-4o-mini with character limit in prompt
-2. **`count_characters`**: Counts characters in text strings
+- **Factory Pattern**: `get_agentic_service()` still returns `LangGraphService`
+- **Graph Nodes**:
+  1. `fetch_snippets` → SerpAPI client gathers public context.
+  2. `synthesize_research` → LLM distills snippets into insights.
+  3. `generate_copy` → copywriter agent crafts the LinkedIn/X post.
+  4. `generate_hashtags` → hashtag agent proposes tags + rationale.
+- **State Management**: Shared `state.State` TypedDict keeps topic, tone, insights, post, and hashtags tidy.
 
 ### Configuration
-- **Model**: gpt-4o-mini (configurable in `langgraph_service.py`)
-- **Temperature**: 0.3 (focused responses)
-- **Default Character Limit**: 240 characters
-- **Customizable**: Character limit can be overridden per request
+- Edit `config/content_agent.yml` (or set `CONTENT_AGENT_CONFIG`) to control:
+  - SerpAPI key + search defaults.
+  - OpenAI model/temperature.
+  - Prompt text for research, copywriting, and hashtags.
+- `SERPAPI_KEY` env var overrides the YAML value for secrets-only deploys.
 
 ### Example Usage
 
@@ -178,20 +182,17 @@ from langgraph_service import LangGraphService
 
 service = LangGraphService()
 
-# Basic usage
-result = await service.execute_task({
-    "input_string": "Your text here"
-})
+payload = {
+    "topic": "AI copilots for RevOps",
+    "tone": "pragmatic",
+    "platform": "linkedin",
+    "keywords": ["RevOps", "playbooks"],
+    "link": "https://example.com/deck.pdf"
+}
 
-# With custom character limit
-result = await service.execute_task({
-    "input_string": "Your text here",
-    "char_limit": 100
-})
-
-print(f"Summary: {result.raw}")
-print(f"Character count: {result.json_dict['character_count']}")
-print(f"Within limit: {result.json_dict['within_limit']}")
+result = await service.execute_task(payload)
+print(result.raw)  # final post body
+print(result.json_dict["hashtags"])
 ```
 
 ## Branch Information
