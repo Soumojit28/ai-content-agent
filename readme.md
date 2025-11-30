@@ -90,121 +90,118 @@ Legend:
 - **Config-Driven Prompts**: `config/content_agent.yml` centralizes prompts + API settings.
 - **Full Masumi Compliance**: All MIP-003 endpoints implemented and tested.
 
-### Agent Workflow
+## Prerequisites
 
-1. **Input Processing**: Topic, tone, platform, keywords, optional link/audience.
-2. **Research**: SerpAPI pulls snippets, research agent distills insights + summary.
-3. **Copywriting**: Copy agent turns insights into a LinkedIn/X-style post + rationale, optionally generating image prompts.
-4. **Image Generation**: If image prompt is provided by copywriter, calls Masumi image agent to generate and store image on IPFS.
-5. **Hashtags**: Hashtag agent outputs a ranked list plus justification.
-6. **Output**: Job result JSON contains post body, headline, hashtags, insights, optional image URLs, and metadata.
-
-### Prerequisites
-
-- [Blockfrost](https://blockfrost.io/) API key
+- [Blockfrost](https://blockfrost.io/) API key (for Cardano blockchain interaction)
 - **OpenAI API key** (for gpt-4o-mini model)
 - **SerpAPI key** (optional, for search functionality)
-- For quick deployment: [Railway account](https://railway.com?referralCode=pa1ar) (free trial is 30 days or $5)
 - (Optional) Masumi image agent service for AI image generation
+- For quick deployment: [Railway account](https://railway.com?referralCode=pa1ar)
 
-## Railway Deployment
+## Quick Start - Railway Deployment
 
-> The purpose of this repository is to get you from 0 to agentic service owner in as little time as possible. Yet it is assumed, that you are somewhat familiar with [Masumi Network](https://masumi.network/). If you are not, please consider heading over to the official [Masumi docs](https://docs.masumi.network/) first.  
+> This guide assumes familiarity with [Masumi Network](https://masumi.network/). If you're new, check the [official docs](https://docs.masumi.network/) first.
 
-This example uses [Railway](https://railway.com?referralCode=pa1ar) templates. Railway is a cloud development platform that enables developers to deploy, manage and scale applications and databases with minimal configuration. Masumi Services obviously can be hosted anywhere, so feel free to use the templates as examples and pick a service of your choice.  
+### 1. Deploy Masumi Payment Service
 
-Railway templates we provide are pointing to the open-source repositories of Masumi organisation. That means you can read full code, if you want, to be sure nothing shady is going on. You can also fork the repositories first, and still use the templates by just pointing them to your forks, if you want.
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/masumi-payment-service-official?referralCode=padierfind)
 
-### How to Deploy
+- Provide Blockfrost API key when prompted
+- Wait 5+ minutes for deployment
+- Generate public URL: Settings > Networking > Generate URL
+- Test at `/admin` and `/docs` endpoints
+- **Important**: Remember to append `/api/v1` to the URL when using it in next steps
 
-1. **Deploy [Masumi Payment Service](https://github.com/masumi-network/masumi-payment-service)**:  
+### 2. Deploy This Agent Service
 
-    [![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/masumi-payment-service-official?referralCode=padierfind)
-   - Use the template in an existing or new project (in existing project, "Create" > "Template" > search for "Masumi Payment Service")
-   - Provide Blockfrost API key in variables (required to click "deploy")
-   - Click on deploy, watch the logs, wait for it (takes 5+ minutes, depending on the load on Railway)
-   - You should see 2 services on your canvas, connected with an dotted arrow: a PostgreSQL database and a Masumi Payment Service.
-   - Click on Masumi Payment Service on the canvas > Settings > Networking > Generate URL
-   - Test at public URL `/admin` or `/docs`. Your default admin key (used to login to the admin panel and sign transactions) is in your variables. **Change it on the admin panel.**
-   - **Important:** Masumi API endpoints must include `/api/v1/`!  Be sure to append that slugs in the next steps (deploying agentic service).
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/masumi-compliant-service-api-official?referralCode=padierfind)
 
-2. **Deploy [Agent Service API Wrapper](https://github.com/masumi-network/agentic-service-wrapper)**:  
+Required environment variables:
+- `PAYMENT_SERVICE_URL` - Your payment service URL with `/api/v1` suffix
+- `OPENAI_API_KEY` - Your OpenAI API key
+- `SERPAPI_KEY` - (Optional) Your SerpAPI key for search
+- `AGENT_IDENTIFIER` - Will be set after registering the agent
+- `SELLER_VKEY` - Get from payment service admin panel
+- `PAYMENT_API_KEY` - Your payment service API key
 
-    [![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/masumi-compliant-service-api-official?referralCode=padierfind)
-   - Make sure your Masumi payment service is up and running
-   - Provide `PAYMENT_SERVICE_URL` in variables (format: `https://your-instance-of-masumi.up.railway.app/api/v1`, the main part of the URL can differ, point is - don't forget the `/api/v1` slugs)
-   - **Add `OPENAI_API_KEY`** to Railway variables (required for LangGraph agent)
-   - Wait for deployment to complete
-   - Generate public URL in settings of the service
-   - Check the swagger at `/docs`
+### 3. Register Your Agent
 
-3. **Configure Agent**
-   - Go to Payment Service admin panel, top up selling wallet
-   - Register agent via Agent Service URL (you need to have funds on your selling wallet, read the [docs](https://docs.masumi.network/))
-   - Retrieve Agent ID aka Asset ID
-   - Check Agent Service variables:
-     - `SELLER_VKEY`: vkey (verificatin key) of selling wallet used to register agent, get it from the admin panel of your payment service
-     - `PAYMENT_API_KEY`: payment token or admin key for Payment Service (you have used it to login to the admin panel)
-     - `PAYMENT_SERVICE_URL`: URL of your Payment Service
-     - `OPENAI_API_KEY`: OpenAI API key for gpt-4o-mini model
+1. Top up your selling wallet via Payment Service admin panel
+2. Register agent using the agent service URL (requires funds)
+3. Retrieve the Agent ID (Asset ID)
+4. Update `AGENT_IDENTIFIER` in agent service variables
+5. Test via `/docs` endpoint
 
-4. **Test Integration**
-   - Start job via Agent Service with text and optional character limit
-   - Copy job output (excluding `job_id` and `payment_id`)
-   - Go to the `/docs` of your Masumi Payment Service
-   - Open POST `/purchase` on Payment Service and paste your job output (this initiates the payment process)
-   - Check job status on Agent Service for results
+## Local Development
 
-## How to Customize
-
-1. Fork this repository
-2. Edit `langgraph_service.py` to implement your LangGraph agent logic
-3. Modify tools and agent workflow in `graph.py` as needed
-4. Update `input_schema` in `main.py` to match your input requirements
-5. Adjust agent prompts in `config/content_agent.yml`
-6. Run or deploy your customized version using Railway
-
-> **Side note:** Railway can try to deploy public repository without asking for any permissions. To deploy a private repository, you need to connect Railway to your GitHub account or GitHub organisation and grant reading permissions (you will be guided through the process by Railway).
-
-## Local Setup
+### Setup
 
 ```bash
+# Clone and setup environment
 cp .env.example .env
-# edit .env with your config including OPENAI_API_KEY and SERPAPI_KEY
+# Edit .env with OPENAI_API_KEY, SERPAPI_KEY, etc.
 
+# Install dependencies
 uv venv
 source .venv/bin/activate
 uv pip sync requirements.txt
 
+# Get seller verification key
 python get_payment_source_info.py
-# add SELLER_VKEY to .env
+# Add SELLER_VKEY to .env
 
+# Start the server
 python main.py api
 ```
 
-### Optional: Masumi Image Agent Integration
+### Environment Variables
 
-To enable AI image generation via a separate Masumi-compliant image agent + payment service:
+Required:
+- `OPENAI_API_KEY` - OpenAI API key for LLM
+- `PAYMENT_SERVICE_URL` - Masumi payment service URL (with `/api/v1`)
+- `PAYMENT_API_KEY` - Payment service API key
+- `AGENT_IDENTIFIER` - Your registered agent's asset ID
+- `SELLER_VKEY` - Seller verification key
+- `NETWORK` - Network name (e.g., `Preprod` or `Mainnet`)
 
-**Environment Variables:**
+Optional:
+- `SERPAPI_KEY` - SerpAPI key for web search (can also be set in config YAML)
+- `PAYMENT_AMOUNT` - Payment amount in lovelace (default: 1000000)
+- `PAYMENT_UNIT` - Payment unit (default: lovelace)
 
-- **IMAGE_AGENT_BASE_URL**: Base URL of the image agent service (used for `/start_job` and `/status`).
-- **IMAGE_AGENT_MODEL_TYPE**: Optional model type for the image agent, defaults to `OPENAI`.
-- **IMAGE_PAYMENT_SERVICE_URL**: (Optional) Payment service base URL for image jobs; if not set, falls back to `PAYMENT_SERVICE_URL`.
-- **IMAGE_PAYMENT_API_KEY**: (Optional) API key for image purchases; if not set, falls back to `PAYMENT_API_KEY`.
-- **IMAGE_PAYMENT_API_KEY_HEADER**: HTTP header name carrying the payment API key, defaults to `x-api-key`.
-- **IMAGE_NETWORK**: Network name for image purchases (e.g. `Preprod`); if not set, falls back to `NETWORK` or `Preprod`.
-- **IMAGE_IPFS_GATEWAY**: IPFS gateway base (e.g. `https://ipfs.io/ipfs`) used to construct a URL from the returned IPFS hash.
+### Optional: Image Generation
 
-**How it works:**
+To enable AI image generation via a separate Masumi image agent:
 
-1. The copywriting agent generates an `image_prompt` field in the post.
-2. The graph's `generate_image` node calls the Masumi image agent's `/start_job` endpoint.
-3. Payment is automatically processed via the configured payment service.
-4. The system polls `/status` until the image is ready.
-5. Final output includes `image_ipfs_hash`, `image_ipfs_url`, and `image_job` metadata.
+Environment Variables:
+- `IMAGE_AGENT_BASE_URL` - Base URL of image agent service
+- `IMAGE_AGENT_MODEL_TYPE` - Model type (default: `OPENAI`)
+- `IMAGE_PAYMENT_SERVICE_URL` - Payment service for images (falls back to `PAYMENT_SERVICE_URL`)
+- `IMAGE_PAYMENT_API_KEY` - API key for image payments (falls back to `PAYMENT_API_KEY`)
+- `IMAGE_NETWORK` - Network for image purchases (falls back to `NETWORK`)
+- `IMAGE_IPFS_GATEWAY` - IPFS gateway URL (e.g., `https://ipfs.io/ipfs`)
 
-If image generation fails, the text workflow continues and the error is captured in `image_error` field.
+The copywriter agent can generate `image_prompt` fields, which trigger automatic image generation, payment, and IPFS storage. Results include `image_ipfs_hash` and `image_ipfs_url` in the job output.
+
+## Customization
+
+### Modify Agent Behavior
+
+1. **Edit Prompts**: Update `config/content_agent.yml` to customize agent prompts and settings
+2. **Modify Workflow**: Edit `graph.py` to add/remove/reorder graph nodes
+3. **Change Agents**: Update implementations in `agents/` directory
+4. **Add Tools**: Create new integrations in `tools/` directory
+5. **Update Schema**: Modify `input_schema` in `main.py` for different inputs
+
+### Configuration File
+
+`config/content_agent.yml` controls:
+- OpenAI model and temperature
+- SerpAPI settings (key, engine, location, language, result count)
+- Agent prompts for research, copywriting, and hashtags
+- Default settings like emoji usage
+
+Environment variable `SERPAPI_KEY` overrides the YAML value for security.
 
 ## API Endpoints
 
@@ -281,46 +278,6 @@ uv run python -m pytest test_api.py -v
 uv run python test_content_agent.py
 ```
 
-## LangGraph Implementation Details
-
-### Service Architecture
-- **Factory Pattern**: `get_agentic_service()` returns `LangGraphService`
-- **Graph Nodes**:
-  1. `fetch_snippets` → SerpAPI client gathers public context.
-  2. `synthesize_research` → LLM distills snippets into insights.
-  3. `generate_copy` → copywriter agent crafts the LinkedIn/X post.
-  4. `generate_image` → (Optional) Masumi image agent generates visuals from copywriter's image prompt.
-  5. `generate_hashtags` → hashtag agent proposes tags + rationale.
-- **State Management**: Shared `state.State` TypedDict keeps topic, tone, insights, post, images, and hashtags organized.
-
-### Configuration
-- Edit `config/content_agent.yml` (or set `CONTENT_AGENT_CONFIG`) to control:
-  - SerpAPI key + search defaults.
-  - OpenAI model/temperature.
-  - Prompt text for research, copywriting, and hashtags.
-  - Image generation settings.
-- `SERPAPI_KEY` env var overrides the YAML value for secrets-only deploys.
-
-### Example Usage
-
-```python
-from langgraph_service import LangGraphService
-
-service = LangGraphService()
-
-payload = {
-    "topic": "AI copilots for RevOps",
-    "tone": "pragmatic",
-    "platform": "linkedin",
-    "keywords": ["RevOps", "playbooks"],
-    "link": "https://example.com/deck.pdf"
-}
-
-result = await service.execute_task(payload)
-print(result.raw)  # final post body
-print(result.json_dict["hashtags"])
-```
-
 ## Project Structure
 
 ```
@@ -341,5 +298,47 @@ ai-content-agent/
 ├── langgraph_service.py       # Main service implementation
 ├── main.py                    # FastAPI server + Masumi integration
 ├── state.py                   # Shared state TypedDict
+├── logging_config.py          # Logging configuration
 └── requirements.txt           # Python dependencies
+```
+
+## Implementation Details
+
+### LangGraph Workflow
+
+The service uses LangGraph's StateGraph to orchestrate a multi-agent pipeline:
+
+1. **fetch_snippets** - SerpAPI client fetches web search results
+2. **synthesize_research** - Research agent analyzes and summarizes findings
+3. **generate_copy** - Copywriting agent creates platform-specific content
+4. **generate_image** - (Optional) Masumi image agent generates visuals
+5. **generate_hashtags** - Hashtag agent proposes strategic tags
+
+State flows through the graph using a shared TypedDict (`state.State`), maintaining topic, tone, platform, insights, post content, and metadata.
+
+### Service Factory
+
+`get_agentic_service()` in `agentic_service.py` returns `LangGraphService`, which:
+- Loads configuration from `config/content_agent.yml`
+- Initializes all agents and tools
+- Builds the ContentGraph workflow
+- Executes tasks and returns `ServiceResult` objects
+
+### Example Usage
+
+```python
+from langgraph_service import LangGraphService
+
+service = LangGraphService()
+result = await service.execute_task({
+    "topic": "Masumi Decentralized AI agents",
+    "tone": "pragmatic",
+    "platform": "linkedin",
+    "keywords": ["AI Agents", "Cardano"],
+    "link": "https://masumi.network"
+})
+
+print(result.raw)  # Post body
+print(result.json_dict["hashtags"])  # Generated hashtags
+print(result.json_dict["insights"])  # Research insights
 ```
