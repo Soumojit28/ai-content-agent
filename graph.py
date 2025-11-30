@@ -115,6 +115,7 @@ class ContentGraph:
                 },
             }
         except MasumiImageClientError as e:
+            print(f"MasumiImageClientError: {e}")
             if self.logger:
                 self.logger.error(
                     "Masumi image generation failed in graph node: %s",
@@ -125,15 +126,17 @@ class ContentGraph:
             metadata["image_error"] = str(e)
             return {"metadata": metadata, "image_error": str(e)}
         except Exception as e:
+            error_msg = str(e) if str(e) else repr(e)
+            print(f"Exception: {error_msg}")
             if self.logger:
                 self.logger.error(
                     "Unexpected error during Masumi image generation in graph node: %s",
-                    e,
+                    error_msg,
                     exc_info=True,
                 )
             metadata = dict(state.get("metadata", {}))
-            metadata["image_error"] = f"Unexpected image error: {e}"
-            return {"metadata": metadata, "image_error": str(e)}
+            metadata["image_error"] = f"Unexpected image error: {error_msg}"
+            return {"metadata": metadata, "image_error": error_msg}
 
     async def _generate_hashtags(self, state: State) -> Dict[str, Any]:
         package = await self.hashtag_agent.generate_hashtags(state)

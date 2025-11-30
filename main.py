@@ -1,9 +1,14 @@
 import os
+from dotenv import load_dotenv
+
+# Load environment variables FIRST before any other imports
+# This ensures env vars are available when graph.py is imported
+load_dotenv(override=True)
+
 import uvicorn
 import uuid
 import time
 from urllib.parse import urlparse
-from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from masumi.config import Config
@@ -16,9 +21,6 @@ import logging
 #region congif
 # Configure logging
 logger = setup_logging(log_level=logging.DEBUG)
-
-# Load environment variables
-load_dotenv(override=True)
 
 # Retrieve API Keys and URLs
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
