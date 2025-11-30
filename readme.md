@@ -1,13 +1,14 @@
-# Masumi Agent Service - LangGraph Branch
+# Masumi Agent Service
 
-## 🧠 LangGraph Integration
+## 🧠 LangGraph Multi-Agent Content Creation
 
-This branch demonstrates a **multi-agent LangGraph workflow** that researches a topic with SerpAPI, drafts a LinkedIn/X-ready post, and proposes hashtags. It replaces the previous summarizer with a production-style content composer.
+This service demonstrates a **multi-agent LangGraph workflow** that researches a topic with SerpAPI, drafts a LinkedIn/X-ready post with optional AI-generated images, and proposes hashtags. It's a production-ready content composer integrated with the Masumi Network.
 
 ### Key Features
 
 - **SerpAPI Research Tool**: Fetches fresh public insights for the topic + optional keywords/link.
-- **Copywriting Agent**: Tailors tone + platform, stitches insights, and emits CTA-ready copy.
+- **Copywriting Agent**: Tailors tone + platform, stitches insights, and emits CTA-ready copy with optional image prompts.
+- **AI Image Generation**: Optional integration with Masumi image agents for AI-generated visuals via IPFS.
 - **Hashtag Agent**: Generates ordered hashtags with rationale for reach planning.
 - **Config-Driven Prompts**: `config/content_agent.yml` centralizes prompts + API settings.
 - **Full Masumi Compliance**: All MIP-003 endpoints implemented and tested.
@@ -16,15 +17,18 @@ This branch demonstrates a **multi-agent LangGraph workflow** that researches a 
 
 1. **Input Processing**: Topic, tone, platform, keywords, optional link/audience.
 2. **Research**: SerpAPI pulls snippets, research agent distills insights + summary.
-3. **Copywriting**: Copy agent turns insights into a LinkedIn/X-style post + rationale.
-4. **Hashtags**: Hashtag agent outputs a ranked list plus justification.
-5. **Output**: Job result JSON contains post body, headline, hashtags, insights, and metadata.
+3. **Copywriting**: Copy agent turns insights into a LinkedIn/X-style post + rationale, optionally generating image prompts.
+4. **Image Generation**: If image prompt is provided by copywriter, calls Masumi image agent to generate and store image on IPFS.
+5. **Hashtags**: Hashtag agent outputs a ranked list plus justification.
+6. **Output**: Job result JSON contains post body, headline, hashtags, insights, optional image URLs, and metadata.
 
 ### Prerequisites
 
 - [Blockfrost](https://blockfrost.io/) API key
 - **OpenAI API key** (for gpt-4o-mini model)
+- **SerpAPI key** (optional, for search functionality)
 - For quick deployment: [Railway account](https://railway.com?referralCode=pa1ar) (free trial is 30 days or $5)
+- (Optional) Masumi image agent service for AI image generation
 
 ## Railway Deployment
 
@@ -77,10 +81,10 @@ Railway templates we provide are pointing to the open-source repositories of Mas
 ## How to Customize
 
 1. Fork this repository
-2. Switch to the langchain branch: `git checkout langchain`
-3. Edit `langgraph_service.py` to implement your LangGraph agent logic
-4. Modify tools and agent workflow as needed
-5. Update `input_schema` in main.py to match your input requirements
+2. Edit `langgraph_service.py` to implement your LangGraph agent logic
+3. Modify tools and agent workflow in `graph.py` as needed
+4. Update `input_schema` in `main.py` to match your input requirements
+5. Adjust agent prompts in `config/content_agent.yml`
 6. Run or deploy your customized version using Railway
 
 > **Side note:** Railway can try to deploy public repository without asking for any permissions. To deploy a private repository, you need to connect Railway to your GitHub account or GitHub organisation and grant reading permissions (you will be guided through the process by Railway).
@@ -89,7 +93,7 @@ Railway templates we provide are pointing to the open-source repositories of Mas
 
 ```bash
 cp .env.example .env
-# edit .env with your config including OPENAI_API_KEY
+# edit .env with your config including OPENAI_API_KEY and SERPAPI_KEY
 
 uv venv
 source .venv/bin/activate
@@ -101,9 +105,11 @@ python get_payment_source_info.py
 python main.py api
 ```
 
-### Optional: Masumi image agent integration
+### Optional: Masumi Image Agent Integration
 
-To enable image generation via a separate Masumi-compliant image agent + payment service:
+To enable AI image generation via a separate Masumi-compliant image agent + payment service:
+
+**Environment Variables:**
 
 - **IMAGE_AGENT_BASE_URL**: Base URL of the image agent service (used for `/start_job` and `/status`).
 - **IMAGE_AGENT_MODEL_TYPE**: Optional model type for the image agent, defaults to `OPENAI`.
@@ -113,19 +119,15 @@ To enable image generation via a separate Masumi-compliant image agent + payment
 - **IMAGE_NETWORK**: Network name for image purchases (e.g. `Preprod`); if not set, falls back to `NETWORK` or `Preprod`.
 - **IMAGE_IPFS_GATEWAY**: IPFS gateway base (e.g. `https://ipfs.io/ipfs`) used to construct a URL from the returned IPFS hash.
 
-When `LangGraphService` receives `image_prompt` (and optionally `generate_image: true`) in `input_data`, it will use these settings to:
+**How it works:**
 
-1. POST the prompt to the image agent `/start_job`.
-2. POST the returned payment payload to the payment service `/purchase`.
-3. Poll the image agent `/status` every 60 seconds until `status: completed`.
+1. The copywriting agent generates an `image_prompt` field in the post.
+2. The graph's `generate_image` node calls the Masumi image agent's `/start_job` endpoint.
+3. Payment is automatically processed via the configured payment service.
+4. The system polls `/status` until the image is ready.
+5. Final output includes `image_ipfs_hash`, `image_ipfs_url`, and `image_job` metadata.
 
-The final job result JSON will then include:
-
-- `image_ipfs_hash`: the raw IPFS hash returned by the image agent.
-- `image_ipfs_url`: IPFS gateway URL constructed from the hash.
-- `image_job`: metadata including the image job id and raw status payload.
-- `image_error`: non-fatal error message if image generation fails while the text workflow still succeeds.
-```
+If image generation fails, the text workflow continues and the error is captured in `image_error` field.
 
 ## API Endpoints
 
@@ -169,11 +171,11 @@ curl http://localhost:8000/input_schema
 curl -X POST http://localhost:8000/start_job \
   -H "Content-Type: application/json" \
   -d '{"input_data": [
-        {"key": "topic", "value": "AI copilots for RevOps"},
+        {"key": "topic", "value": "Masumi Decentralized AI agents"},
         {"key": "tone", "value": "pragmatic"},
         {"key": "platform", "value": "linkedin"},
-        {"key": "keywords", "value": "RevOps,playbooks"},
-        {"key": "link", "value": "https://example.com/deck.pdf"}
+        {"key": "keywords", "value": "Ai Agents, Cardano"},
+        {"key": "link", "value": "https://masumi.network"}
       ]}'
 
 # run test suite
@@ -186,19 +188,21 @@ uv run python langgraph_service.py
 ## LangGraph Implementation Details
 
 ### Service Architecture
-- **Factory Pattern**: `get_agentic_service()` still returns `LangGraphService`
+- **Factory Pattern**: `get_agentic_service()` returns `LangGraphService`
 - **Graph Nodes**:
   1. `fetch_snippets` → SerpAPI client gathers public context.
   2. `synthesize_research` → LLM distills snippets into insights.
   3. `generate_copy` → copywriter agent crafts the LinkedIn/X post.
-  4. `generate_hashtags` → hashtag agent proposes tags + rationale.
-- **State Management**: Shared `state.State` TypedDict keeps topic, tone, insights, post, and hashtags tidy.
+  4. `generate_image` → (Optional) Masumi image agent generates visuals from copywriter's image prompt.
+  5. `generate_hashtags` → hashtag agent proposes tags + rationale.
+- **State Management**: Shared `state.State` TypedDict keeps topic, tone, insights, post, images, and hashtags organized.
 
 ### Configuration
 - Edit `config/content_agent.yml` (or set `CONTENT_AGENT_CONFIG`) to control:
   - SerpAPI key + search defaults.
   - OpenAI model/temperature.
   - Prompt text for research, copywriting, and hashtags.
+  - Image generation settings.
 - `SERPAPI_KEY` env var overrides the YAML value for secrets-only deploys.
 
 ### Example Usage
@@ -221,11 +225,25 @@ print(result.raw)  # final post body
 print(result.json_dict["hashtags"])
 ```
 
-## Branch Information
+## Project Structure
 
-This is the **langchain** branch of the multi-integration repository. Other branches available:
-- **main**: Simple text reversal service (zero dependencies)
-- **crewai**: CrewAI framework integration
-- **langchain**: LangGraph ReAct agent implementation (this branch)
-
-Switch branches to explore different agent frameworks while maintaining Masumi compliance.
+```
+ai-content-agent/
+├── agents/                     # Agent implementations
+│   ├── copywriter.py          # LinkedIn/X copywriting agent
+│   ├── hashtags.py            # Hashtag generation agent
+│   ├── research.py            # Research synthesis agent
+│   └── utils.py               # Shared agent utilities
+├── config/                     # Configuration files
+│   ├── content_agent.py       # Config loader
+│   └── content_agent.yml      # Agent prompts and settings
+├── tools/                      # External service integrations
+│   ├── serp_client.py         # SerpAPI integration
+│   └── masumi_image_client.py # Masumi image agent client
+├── agentic_service.py         # Service factory pattern
+├── graph.py                   # LangGraph workflow definition
+├── langgraph_service.py       # Main service implementation
+├── main.py                    # FastAPI server + Masumi integration
+├── state.py                   # Shared state TypedDict
+└── requirements.txt           # Python dependencies
+```
