@@ -274,6 +274,7 @@ async def generate_image_with_masumi(
     identifier_from_purchaser: Optional[str] = None,
     poll_interval_seconds: float = 60.0,
     max_polls: int = 60,
+    http_timeout: float = 60.0,
     logger: Optional[logging.Logger] = None,
 ) -> Dict[str, Any]:
     """
@@ -293,14 +294,16 @@ async def generate_image_with_masumi(
     start_resp = await start_image_job(
         prompt,
         identifier_from_purchaser=identifier_from_purchaser,
+        timeout=http_timeout,
         logger=logger,
     )
-    await trigger_purchase(start_resp, logger=logger)
+    await trigger_purchase(start_resp, timeout=http_timeout, logger=logger)
     job_id = start_resp["job_id"]
     status_resp = await wait_for_image_result(
         job_id,
         poll_interval_seconds=poll_interval_seconds,
         max_polls=max_polls,
+        timeout=http_timeout,
         logger=logger,
     )
 
