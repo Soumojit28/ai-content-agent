@@ -4,6 +4,83 @@
 
 This service demonstrates a **multi-agent LangGraph workflow** that researches a topic with SerpAPI, drafts a LinkedIn/X-ready post with optional AI-generated images, and proposes hashtags. It's a production-ready content composer integrated with the Masumi Network.
 
+## Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          CLIENT / USER                                  │
+└────────────────────────────────┬────────────────────────────────────────┘
+                                 │
+                                 │ POST /start_job
+                                 ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         FASTAPI SERVER (main.py)                        │
+│  ┌──────────────────────────────────────────────────────────────────┐  │
+│  │  MIP-003 Endpoints: /start_job, /status, /availability, etc.    │  │
+│  └────────────────────────────┬─────────────────────────────────────┘  │
+│                                │                                         │
+│                                │ Creates Payment Request                 │
+│                                ▼                                         │
+│  ┌──────────────────────────────────────────────────────────────────┐  │
+│  │           Masumi Payment Service Integration                     │  │
+│  │  - Create payment request via Payment API                        │  │
+│  │  - Monitor payment status (polling)                              │  │
+│  │  - Complete payment after job execution                          │  │
+│  └────────────────────────────┬─────────────────────────────────────┘  │
+└─────────────────────────────────┼─────────────────────────────────────┘
+                                  │
+                                  │ Payment Confirmed
+                                  ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                   LANGGRAPH SERVICE (langgraph_service.py)              │
+│  ┌──────────────────────────────────────────────────────────────────┐  │
+│  │                    ContentGraph (graph.py)                       │  │
+│  │                                                                  │  │
+│  │   ┌───────────────┐      ┌────────────────┐                    │  │
+│  │   │ fetch_snippets│─────▶│ synthesize     │                    │  │
+│  │   │   (SerpAPI)   │      │   research     │                    │  │
+│  │   └───────────────┘      └────────┬───────┘                    │  │
+│  │                                   │                             │  │
+│  │                                   ▼                             │  │
+│  │                          ┌────────────────┐                     │  │
+│  │                          │ generate_copy  │                     │  │
+│  │                          │  (Copywriter)  │                     │  │
+│  │                          └────────┬───────┘                     │  │
+│  │                                   │                             │  │
+│  │                                   ▼                             │  │
+│  │                          ┌────────────────┐                     │  │
+│  │                          │generate_image  │◄────────┐           │  │
+│  │                          │  (Optional)    │         │           │  │
+│  │                          └────────┬───────┘         │           │  │
+│  │                                   │                 │           │  │
+│  │                                   ▼                 │           │  │
+│  │                          ┌────────────────┐         │           │  │
+│  │                          │generate        │         │           │  │
+│  │                          │ hashtags       │         │           │  │
+│  │                          └────────────────┘         │           │  │
+│  └──────────────────────────────────────────────────────┼───────────┘  │
+└─────────────────────────────────────────────────────────┼─────────────┘
+                                                          │
+                ┌─────────────────────────────────────────┼─────────────┐
+                │                                         │             │
+                │                                         │             │
+                ▼                                         ▼             │
+    ┌───────────────────────┐              ┌──────────────────────────┐│
+    │   External Services   │              │  Masumi Image Agent      ││
+    │                       │              │  (Optional)              ││
+    │  • SerpAPI (search)   │              │  - AI image generation   ││
+    │  • OpenAI (LLM)       │              │  - IPFS storage          ││
+    │  • Blockfrost         │              │  - Payment integration   ││
+    └───────────────────────┘              └──────────────────────────┘│
+                                                                        │
+                                                                        │
+                                          Returns: IPFS hash + URL ────┘
+
+Legend:
+  ──▶  Data flow
+  ◄──  Optional callback/integration
+```
+
 ### Key Features
 
 - **SerpAPI Research Tool**: Fetches fresh public insights for the topic + optional keywords/link.
@@ -132,57 +209,76 @@ If image generation fails, the text workflow continues and the error is captured
 ## API Endpoints
 
 ### `/start_job` - Start a new content job
-**POST** request with the following JSON body (Masumi Network Standard):
+**POST** request with the following JSON body:
 
 ```json
 {
-  "input_data": [
-    {"key": "topic", "value": "AI copilots for RevOps"},
-    {"key": "tone", "value": "pragmatic"},
-    {"key": "platform", "value": "linkedin"},
-    {"key": "keywords", "value": "RevOps,playbooks"},
-    {"key": "link", "value": "https://example.com/deck.pdf"}
-  ]
+  "identifier_from_purchaser": "unique-purchaser-id",
+  "input_data": {
+    "topic": "Masumi Decentralized AI agents",
+    "tone": "pragmatic",
+    "platform": "linkedin",
+    "keywords": "AI Agents, Cardano",
+    "link": "https://masumi.network"
+  }
 }
 ```
 
 **Response:**
 ```json
 {
+  "status": "success",
   "job_id": "uuid-string",
-  "payment_id": "payment-identifier"
+  "blockchainIdentifier": "blockchain-id",
+  "submitResultTime": "2024-01-01T00:00:00Z",
+  "unlockTime": "2024-01-01T01:00:00Z",
+  "externalDisputeUnlockTime": "2024-01-01T02:00:00Z",
+  "agentIdentifier": "agent-asset-id",
+  "sellerVKey": "seller-verification-key",
+  "identifierFromPurchaser": "unique-purchaser-id",
+  "input_hash": "hash-of-input-data",
+  "payByTime": "2024-01-01T00:30:00Z"
 }
 ```
 
 ### Other Endpoints
-- `GET /availability` - Check server status
-- `GET /input_schema` - Get input schema definition
-- `GET /status?job_id=<id>` - Check job status
-- `GET /health` - Health check
+- `GET /availability` - Check server status and uptime
+- `GET /input_schema` - Get input schema definition (MIP-003 compliant)
+- `GET /status?job_id=<id>` - Check job status and retrieve results
+- `GET /health` - Health check endpoint
 
-## Test
+## Testing
 
 ```bash
-# basic health checks
+# Health checks
+curl http://localhost:8000/health
 curl http://localhost:8000/availability
+
+# Get input schema
 curl http://localhost:8000/input_schema
 
-# start a content job (Masumi Network format)
+# Start a content job
 curl -X POST http://localhost:8000/start_job \
   -H "Content-Type: application/json" \
-  -d '{"input_data": [
-        {"key": "topic", "value": "Masumi Decentralized AI agents"},
-        {"key": "tone", "value": "pragmatic"},
-        {"key": "platform", "value": "linkedin"},
-        {"key": "keywords", "value": "Ai Agents, Cardano"},
-        {"key": "link", "value": "https://masumi.network"}
-      ]}'
+  -d '{
+    "identifier_from_purchaser": "test-user-123",
+    "input_data": {
+      "topic": "Masumi Decentralized AI agents",
+      "tone": "pragmatic",
+      "platform": "linkedin",
+      "keywords": "AI Agents, Cardano",
+      "link": "https://masumi.network"
+    }
+  }'
 
-# run test suite
+# Check job status
+curl "http://localhost:8000/status?job_id=<your-job-id>"
+
+# Run test suite
 uv run python -m pytest test_api.py -v
 
-# test LangGraph service independently
-uv run python langgraph_service.py
+# Test LangGraph service independently
+uv run python test_content_agent.py
 ```
 
 ## LangGraph Implementation Details
