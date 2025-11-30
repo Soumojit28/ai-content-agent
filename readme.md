@@ -101,6 +101,32 @@ python get_payment_source_info.py
 python main.py api
 ```
 
+### Optional: Masumi image agent integration
+
+To enable image generation via a separate Masumi-compliant image agent + payment service:
+
+- **IMAGE_AGENT_BASE_URL**: Base URL of the image agent service (used for `/start_job` and `/status`).
+- **IMAGE_AGENT_MODEL_TYPE**: Optional model type for the image agent, defaults to `OPENAI`.
+- **IMAGE_PAYMENT_SERVICE_URL**: (Optional) Payment service base URL for image jobs; if not set, falls back to `PAYMENT_SERVICE_URL`.
+- **IMAGE_PAYMENT_API_KEY**: (Optional) API key for image purchases; if not set, falls back to `PAYMENT_API_KEY`.
+- **IMAGE_PAYMENT_API_KEY_HEADER**: HTTP header name carrying the payment API key, defaults to `x-api-key`.
+- **IMAGE_NETWORK**: Network name for image purchases (e.g. `Preprod`); if not set, falls back to `NETWORK` or `Preprod`.
+- **IMAGE_IPFS_GATEWAY**: IPFS gateway base (e.g. `https://ipfs.io/ipfs`) used to construct a URL from the returned IPFS hash.
+
+When `LangGraphService` receives `image_prompt` (and optionally `generate_image: true`) in `input_data`, it will use these settings to:
+
+1. POST the prompt to the image agent `/start_job`.
+2. POST the returned payment payload to the payment service `/purchase`.
+3. Poll the image agent `/status` every 60 seconds until `status: completed`.
+
+The final job result JSON will then include:
+
+- `image_ipfs_hash`: the raw IPFS hash returned by the image agent.
+- `image_ipfs_url`: IPFS gateway URL constructed from the hash.
+- `image_job`: metadata including the image job id and raw status payload.
+- `image_error`: non-fatal error message if image generation fails while the text workflow still succeeds.
+```
+
 ## API Endpoints
 
 ### `/start_job` - Start a new content job

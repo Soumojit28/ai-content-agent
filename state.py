@@ -21,6 +21,11 @@ class HashtagOutput(TypedDict, total=False):
     explainer: str
 
 
+class ImageJob(TypedDict, total=False):
+    job_id: str
+    raw_status: Dict[str, Any]
+
+
 class State(TypedDict, total=False):
     topic: str
     tone: str
@@ -37,3 +42,7 @@ class State(TypedDict, total=False):
     hashtag_package: HashtagOutput
     metadata: Dict[str, Any]
     errors: List[str]
+    image_ipfs_hash: str
+    image_ipfs_url: str
+    image_job: ImageJob
+    image_error: str

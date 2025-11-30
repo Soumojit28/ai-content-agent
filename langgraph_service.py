@@ -48,7 +48,8 @@ class LangGraphService:
         print(f"Input data: {input_data}")
         state = self._build_initial_state(input_data)
         final_state = await self.workflow.invoke(state)
-        payload = {
+
+        payload: Dict[str, Any] = {
             "topic": final_state.get("topic"),
             "tone": final_state.get("tone"),
             "platform": final_state.get("platform"),
@@ -59,6 +60,17 @@ class LangGraphService:
             "research_summary": final_state.get("research_summary", ""),
             "metadata": final_state.get("metadata", {}),
         }
+
+        # Attach image metadata produced by the graph image node, if present.
+        if "image_ipfs_hash" in final_state:
+            payload["image_ipfs_hash"] = final_state.get("image_ipfs_hash")
+        if "image_ipfs_url" in final_state:
+            payload["image_ipfs_url"] = final_state.get("image_ipfs_url")
+        if "image_job" in final_state:
+            payload["image_job"] = final_state.get("image_job")
+        if "image_error" in final_state:
+            payload["image_error"] = final_state.get("image_error")
+
         return ServiceResult(
             raw=final_state.get("post", {}).get("post_body", ""),
             json_dict=payload,

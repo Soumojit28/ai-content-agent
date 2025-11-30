@@ -7,10 +7,14 @@ from agents.hashtags import HashtagAgent
 from agents.research import ResearchAgent
 from state import State
 from tools.serp_client import SerpClient
+from tools.masumi_image_client import (
+    MasumiImageClientError,
+    generate_image_with_masumi,
+)
 
 
 class ContentGraph:
-    """LangGraph workflow for research → copy → hashtags."""
+    """LangGraph workflow for research → copy → image → hashtags."""
 
     def __init__(
         self,
@@ -33,11 +37,14 @@ class ContentGraph:
         graph.add_node("fetch_snippets", self._fetch_snippets)
         graph.add_node("synthesize_research", self._synthesize_research)
         graph.add_node("generate_copy", self._generate_copy)
+        graph.add_node("generate_image", self._generate_image)
         graph.add_node("generate_hashtags", self._generate_hashtags)
         graph.add_edge(START, "fetch_snippets")
         graph.add_edge("fetch_snippets", "synthesize_research")
         graph.add_edge("synthesize_research", "generate_copy")
-        graph.add_edge("generate_copy", "generate_hashtags")
+        # Ensure image generation happens after copywriter so it can use post.image_prompt
+        graph.add_edge("generate_copy", "generate_image")
+        graph.add_edge("generate_image", "generate_hashtags")
         graph.add_edge("generate_hashtags", END)
         return graph.compile()
 
@@ -73,6 +80,60 @@ class ContentGraph:
         insights = state.get("insights", [])
         post = await self.copy_agent.generate_post(state, insights)
         return {"post": post}
+
+    async def _generate_image(self, state: State) -> Dict[str, Any]:
+        """Generate image via Masumi image agent using the copywriter's image_prompt."""
+        post = state.get("post") or {}
+        image_prompt = post.get("image_prompt")
+
+        if not image_prompt:
+            if self.logger:
+                self.logger.info("No image_prompt in post; skipping image generation")
+            return {}
+
+        try:
+            if self.logger:
+                self.logger.info("Starting Masumi image generation from graph node")
+            image_result = await generate_image_with_masumi(
+                prompt=image_prompt,
+                logger=self.logger,
+            )
+            metadata = dict(state.get("metadata", {}))
+            metadata["image"] = {
+                "job_id": image_result.get("job_id"),
+                "ipfs_hash": image_result.get("ipfs_hash"),
+                "image_ipfs_url": image_result.get("image_ipfs_url"),
+                "raw_status": image_result.get("raw_status"),
+            }
+            return {
+                "metadata": metadata,
+                "image_ipfs_hash": image_result.get("ipfs_hash"),
+                "image_ipfs_url": image_result.get("image_ipfs_url"),
+                "image_job": {
+                    "job_id": image_result.get("job_id"),
+                    "raw_status": image_result.get("raw_status"),
+                },
+            }
+        except MasumiImageClientError as e:
+            if self.logger:
+                self.logger.error(
+                    "Masumi image generation failed in graph node: %s",
+                    e,
+                    exc_info=True,
+                )
+            metadata = dict(state.get("metadata", {}))
+            metadata["image_error"] = str(e)
+            return {"metadata": metadata, "image_error": str(e)}
+        except Exception as e:
+            if self.logger:
+                self.logger.error(
+                    "Unexpected error during Masumi image generation in graph node: %s",
+                    e,
+                    exc_info=True,
+                )
+            metadata = dict(state.get("metadata", {}))
+            metadata["image_error"] = f"Unexpected image error: {e}"
+            return {"metadata": metadata, "image_error": str(e)}
 
     async def _generate_hashtags(self, state: State) -> Dict[str, Any]:
         package = await self.hashtag_agent.generate_hashtags(state)
